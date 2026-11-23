@@ -1,0 +1,257 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:marginfront:dashboard-config",
+  "title": "MarginFront Configuration Schema",
+  "description": "JSON Schema for MarginFront Dashboard configuration files",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+    "_description": {
+      "type": "string",
+      "description": "Human-readable description of this config file"
+    },
+    "_extends": {
+      "type": "string",
+      "enum": ["base"],
+      "description": "Base configuration to extend"
+    },
+    "_dynamicUrl": {
+      "type": "boolean",
+      "description": "Whether URLs should be dynamically resolved (e.g., from VERCEL_URL)"
+    },
+    "_note": {
+      "type": "string",
+      "description": "Additional notes about this configuration"
+    },
+    "app": {
+      "type": "object",
+      "description": "Application metadata",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Application name"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+",
+          "description": "Semantic version"
+        },
+        "description": {
+          "type": "string",
+          "description": "Application description"
+        }
+      },
+      "required": ["name", "version"]
+    },
+    "api": {
+      "type": "object",
+      "description": "API configuration",
+      "properties": {
+        "baseUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "Base URL for API requests"
+        },
+        "timeout": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 300000,
+          "description": "Request timeout in milliseconds"
+        },
+        "retryAttempts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "description": "Number of retry attempts for failed requests"
+        },
+        "retryDelay": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 30000,
+          "description": "Delay between retries in milliseconds"
+        },
+        "endpoints": {
+          "type": "object",
+          "description": "API endpoint definitions",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "pattern": "^/"
+            }
+          }
+        }
+      }
+    },
+    "features": {
+      "type": "object",
+      "description": "Feature flags",
+      "properties": {
+        "useMockInvoices": {
+          "type": "boolean",
+          "description": "Use mock invoice data instead of API"
+        },
+        "enableAnalytics": {
+          "type": "boolean",
+          "description": "Enable analytics tracking"
+        },
+        "enableSentry": {
+          "type": "boolean",
+          "description": "Enable Sentry error tracking"
+        },
+        "enableBetterStack": {
+          "type": "boolean",
+          "description": "Enable BetterStack logging"
+        },
+        "debugMode": {
+          "type": "boolean",
+          "description": "Enable debug mode"
+        }
+      }
+    },
+    "ui": {
+      "type": "object",
+      "description": "UI configuration",
+      "properties": {
+        "defaultTheme": {
+          "type": "string",
+          "enum": ["light", "dark", "system"],
+          "description": "Default color theme"
+        },
+        "animationsEnabled": {
+          "type": "boolean",
+          "description": "Enable UI animations"
+        },
+        "toastDuration": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 30000,
+          "description": "Toast notification duration in milliseconds"
+        },
+        "paginationDefaults": {
+          "type": "object",
+          "properties": {
+            "pageSize": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "pageSizeOptions": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "description": "Authentication configuration",
+      "properties": {
+        "betterAuthUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "Better Auth base URL"
+        },
+        "trustedOrigins": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of trusted origins for CORS"
+        },
+        "sessionTimeout": {
+          "type": "integer",
+          "minimum": 60000,
+          "description": "Session timeout in milliseconds"
+        },
+        "refreshThreshold": {
+          "type": "integer",
+          "minimum": 10000,
+          "description": "Token refresh threshold in milliseconds"
+        },
+        "tokenStorageKey": {
+          "type": "string",
+          "description": "Local storage key for access token"
+        },
+        "rememberMeDays": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 365,
+          "description": "Number of days for 'remember me' sessions"
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "description": "Logging configuration",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["debug", "info", "warn", "error"],
+          "description": "Minimum log level"
+        },
+        "enableConsole": {
+          "type": "boolean",
+          "description": "Enable console logging"
+        },
+        "enableRemote": {
+          "type": "boolean",
+          "description": "Enable remote logging"
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "description": "Security configuration",
+      "properties": {
+        "enforceHttps": {
+          "type": "boolean",
+          "description": "Enforce HTTPS connections"
+        },
+        "contentSecurityPolicy": {
+          "type": "boolean",
+          "description": "Enable Content Security Policy"
+        }
+      }
+    },
+    "company": {
+      "type": "object",
+      "description": "Company information",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "supportEmail": {
+          "type": "string",
+          "format": "email"
+        },
+        "website": {
+          "type": "string",
+          "format": "uri"
+        },
+        "address": {
+          "type": "string"
+        },
+        "city": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "zip": {
+          "type": "string"
+        },
+        "country": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

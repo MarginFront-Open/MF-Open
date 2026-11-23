@@ -1,0 +1,30 @@
+{
+  "name": "@marginfront/tailwind-config",
+  "version": "1.0.0",
+  "description": "Shared Tailwind CSS configuration for MarginFront applications",
+  "main": "marginfront-theme.ts",
+  "types": "marginfront-theme.ts",
+  "exports": {
+    ".": "./marginfront-theme.ts",
+    "./marginfront-theme": "./marginfront-theme.ts"
+  },
+  "files": [
+    "marginfront-theme.ts",
+    "*.css"
+  ],
+  "keywords": [
+    "tailwindcss",
+    "config",
+    "marginfront",
+    "theme"
+  ],
+  "author": "The MarginFront Authors",
+  "license": "MIT",
+  "peerDependencies": {
+    "tailwindcss": "^3.4.0"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.0.0"
+  }
+}

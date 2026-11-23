@@ -1,0 +1,16 @@
+{
+  // Covers the spec files the build tsconfig excludes. A second
+  // project rather than a relaxed exclude on the first, because the build must
+  // keep excluding specs so test types never reach dist/.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "emitDeclarationOnly": false,
+    "declaration": false,
+    "incremental": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.spec.tsbuildinfo",
+    "types": ["jest", "node"]
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

@@ -1,0 +1,46 @@
+{
+  "name": "@marginfront/db",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "prebuild": "prisma generate",
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run && npm run test:lib",
+    "test:integration": "vitest run --config vitest.config.integration.ts",
+    "db:generate": "prisma generate",
+    "db:studio": "prisma studio",
+    "db:push": "prisma db push",
+    "db:pull": "prisma db pull",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:check-migrations": "prisma migrate deploy && prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url \"$SHADOW_DATABASE_URL\" --exit-code",
+    "db:seed-pricing": "tsx scripts/seed-pricing.ts",
+    "db:sync-pricing": "tsx scripts/sync-service-pricing.ts",
+    "db:snapshot-pricing": "tsx scripts/snapshot-pricing.ts",
+    "db:seed-sample": "tsx scripts/seed-sample-data.ts",
+    "db:setup": "prisma generate && prisma migrate deploy && tsx scripts/seed-pricing.ts --skip-if-newer",
+    "clean": "rm -rf dist node_modules .turbo",
+    "test:lib": "node scripts/run-lib-tests.mjs"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.0.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "prisma": "^6.0.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^3.2.4"
+  }
+}

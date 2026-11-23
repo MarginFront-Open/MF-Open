@@ -1,0 +1,70 @@
+{
+  "name": "marginfront-platform",
+  "version": "0.2.0",
+  "private": true,
+  "license": "MIT",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "lint:fix": "turbo run lint:fix",
+    "test": "node scripts/run-tests.mjs",
+    "typecheck": "turbo typecheck",
+    "db:generate": "turbo run db:generate --filter=@marginfront/db",
+    "db:studio": "turbo run db:studio --filter=@marginfront/db",
+    "db:setup": "npm run db:setup --workspace=@marginfront/db",
+    "db:migrate": "npm run db:migrate --workspace=@marginfront/db",
+    "db:migrate:deploy": "npm run db:migrate:deploy --workspace=@marginfront/db",
+    "db:seed-pricing": "npm run db:seed-pricing --workspace=@marginfront/db",
+    "db:sync-pricing": "npm run db:sync-pricing --workspace=@marginfront/db",
+    "db:seed-sample": "npm run db:seed-sample --workspace=@marginfront/db",
+    "format": "npm run format --prefix apps/dashboard",
+    "format:check": "npm run format:check --prefix apps/dashboard",
+    "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules .turbo apps/*/.turbo packages/*/.turbo apps/dashboard/.next apps/*/dist packages/*/dist coverage apps/*/coverage .eslintcache apps/*/.eslintcache *.log",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^10.0.0",
+    "husky": "^9.1.7",
+    "turbo": "^2.3.0"
+  },
+  "packageManager": "npm@10.2.4",
+  "engines": {
+    "node": ">=20.12.0"
+  },
+  "overrides": {
+    "@angular-devkit/core": {
+      "picomatch": "^4.0.4"
+    },
+    "@mapbox/node-pre-gyp": "^2.0.3",
+    "@nestjs/common": {
+      "file-type": "^21.3.2"
+    },
+    "@nestjs/platform-express": {
+      "body-parser": "^1.20.9",
+      "multer": "^2.5.0"
+    },
+    "@nestjs/swagger": {
+      "js-yaml": "^4.3.2"
+    },
+    "@sentry/bundler-plugins": {
+      "glob": "^14.0.3",
+      "minimatch": "^11.0.5"
+    },
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "express@4": {
+      "body-parser": "^1.20.9"
+    },
+    "lodash": "^4.18.1",
+    "qs": "^6.16.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tar": "^7.5.21",
+    "webpack": "^5.105.0"
+  }
+}

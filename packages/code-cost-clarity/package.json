@@ -1,0 +1,46 @@
+{
+  "name": "@marginfront/code-cost-clarity",
+  "version": "0.20.0",
+  "private": true,
+  "description": "See your Claude Code and Codex spend in MarginFront. One command wires your coding-agent usage telemetry through a local collector into MarginFront, priced per teammate, per model, with accurate prompt-cache token splitting and automatic billable tool-call tracking.",
+  "type": "module",
+  "bin": {
+    "code-cost-clarity": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "marginfront",
+    "claude-code",
+    "anthropic",
+    "cost-tracking",
+    "ai-spend",
+    "opentelemetry",
+    "usage-metering",
+    "finops",
+    "llm-cost"
+  ],
+  "author": "The MarginFront Authors",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.21.0",
+    "@typescript-eslint/parser": "^6.21.0",
+    "eslint": "^8.57.1",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  }
+}

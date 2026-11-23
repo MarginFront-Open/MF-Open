@@ -1,0 +1,2053 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextIndex", "fullTextSearchPostgres"]
+  binaryTargets   = ["native", "rhel-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  // url       — what the app uses at runtime. In serverless envs this should be
+  //             a POOLED connection host so a burst of cold instances
+  //             shares connections instead of exhausting them.
+  url       = env("DATABASE_URL")
+  // directUrl — what Prisma CLI commands (migrate deploy/dev/status, db push/pull)
+  //             connect with instead of url. Migrations must use the DIRECT host:
+  //             running them through PgBouncer is unsupported. The runtime client
+  //             never reads this, and `prisma generate` never resolves env(), so
+  //             builds don't need the var to exist.
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+model agents {
+  id                          String                        @id @db.Uuid
+  name                        String                        @db.VarChar(255)
+  description                 String?
+  agentCode                   String                        @db.VarChar(255)
+  orgId                       String                        @db.Uuid
+  isActive                    Boolean?                      @default(true)
+  createdAt                   DateTime                      @db.Timestamptz(6)
+  updatedAt                   DateTime                      @db.Timestamptz(6)
+  deletedAt                   DateTime?                     @db.Timestamptz(6)
+  context                     Json?
+  agent_pricing_plans         agent_pricing_plans[]
+  organizations               organizations                 @relation(fields: [orgId], references: [id], onDelete: NoAction)
+  blocks                      blocks[]
+  pricing_plans               pricing_plans[]
+  pricing_strategies          pricing_strategies[]
+  signal_classification_rules signal_classification_rules[]
+  signal_events               signal_events[]
+  signals                     signals[]
+  subscriptions               subscriptions[]
+
+  @@unique([agentCode, orgId])
+  @@index([context], type: Gin)
+}
+
+model api_key_usage_logs {
+  id             String        @id @db.Uuid
+  apiKeyId       String        @db.Uuid
+  organizationId String        @db.Uuid
+  requestTime    DateTime      @db.Timestamptz(6)
+  ipAddress      String?       @db.VarChar(255)
+  endpoint       String        @db.VarChar(255)
+  responseStatus Int?
+  metadata       Json?         @default("{}")
+  createdAt      DateTime      @db.Timestamptz(6)
+  updatedAt      DateTime      @db.Timestamptz(6)
+  api_keys       api_keys      @relation(fields: [apiKeyId], references: [id], onDelete: Cascade)
+  organizations  organizations @relation(fields: [organizationId], references: [id], onDelete: NoAction)
+
+  @@index([apiKeyId], map: "idx_api_usage_key")
+  @@index([organizationId], map: "idx_api_usage_org")
+  @@index([requestTime], map: "idx_api_usage_time")
+}
+
+model api_keys {
+  id                 String                @id @db.Uuid
+  name               String                @db.VarChar(255)
+  organizationId     String                @db.Uuid
+  createdById        String                @db.Uuid
+  apiKeyHash         String                @db.VarChar(255)
+  apiKeyPlaintext    String?               @db.VarChar(255)
+  // Deterministic SHA-256 lookup hash of the raw key. This is
+  // what validateApiKey matches on. Computed by the shared
+  // hashApiKeyForLookup() helper on write and on verify so they cannot drift.
+  apiKeyLookupHash   String?               @db.VarChar(64)
+  description        String?               @db.VarChar(255)
+  expiresAt          DateTime?             @db.Timestamptz(6)
+  status             enum_api_keys_status? @default(active)
+  lastUsedAt         DateTime?             @db.Timestamptz(6)
+  revokedAt          DateTime?             @db.Timestamptz(6)
+  permissions        Json?                 @default("[]")
+  metadata           Json?                 @default("{}")
+  createdAt          DateTime              @db.Timestamptz(6)
+  updatedAt          DateTime              @db.Timestamptz(6)
+  deletedAt          DateTime?             @db.Timestamptz(6)
+  keyType            enum_api_keys_keyType @default(secret)
+  keyPrefix          String?               @db.VarChar(15)
+  api_key_usage_logs api_key_usage_logs[]
+  users              users                 @relation(fields: [createdById], references: [id], onDelete: NoAction)
+  organizations      organizations         @relation(fields: [organizationId], references: [id], onDelete: NoAction)
+
+  @@index([keyType], map: "idx_api_keys_key_type")
+  @@index([organizationId, keyType], map: "idx_api_keys_org_type")
+  // Plain (non-unique) index so the hash lookup in validateApiKey is fast.
+  @@index([apiKeyLookupHash], map: "idx_api_keys_lookup_hash")
+}
+
+model blocks {
+  id              String             @id @db.Uuid
+  organization_id String             @db.Uuid
+  agent_id        String?            @db.Uuid
+  name            String             @db.VarChar(255)
+  type            enum_blocks_type
+  status          enum_blocks_status @default(active)
+  theme           Json               @default("{\"mode\": \"light\", \"textColor\": \"#1A1A1A\", \"errorColor\": \"#EF4444\", \"fontFamily\": \"system-ui\", \"borderColor\": \"#E5E5E5\", \"borderRadius\": 8, \"primaryColor\": \"#0066FF\", \"successColor\": \"#10B981\", \"backgroundColor\": \"#FFFFFF\", \"secondaryTextColor\": \"#6B7280\"}")
+  settings        Json               @default("{}")
+  created_at      DateTime           @db.Timestamptz(6)
+  updated_at      DateTime           @db.Timestamptz(6)
+  deleted_at      DateTime?          @db.Timestamptz(6)
+  agents          agents?            @relation(fields: [agent_id], references: [id], onUpdate: NoAction)
+  organizations   organizations      @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([agent_id], map: "idx_blocks_agent_id")
+  @@index([organization_id], map: "idx_blocks_org_id")
+  @@index([status], map: "idx_blocks_status")
+  @@index([type], map: "idx_blocks_type")
+}
+
+model customers {
+  id                     String                 @id @db.Uuid
+  externalId             String?                @db.VarChar(255)
+  name                   String                 @db.VarChar(255)
+  email                  String?                @db.VarChar(255)
+  phone                  String?                @db.VarChar(255)
+  addressLine1           String?                @db.VarChar(255)
+  addressLine2           String?                @db.VarChar(255)
+  city                   String?                @db.VarChar(255)
+  state                  String?                @db.VarChar(255)
+  zipCode                String?                @db.VarChar(255)
+  country                String?                @db.VarChar(255)
+  organizationId         String                 @db.Uuid
+  status                 enum_customers_status? @default(active)
+  billingContactName     String?                @db.VarChar(255)
+  billingContactEmail    String?                @db.VarChar(255)
+  metadata               Json?                  @default("{}")
+  createdAt              DateTime               @db.Timestamptz(6)
+  updatedAt              DateTime               @db.Timestamptz(6)
+  deletedAt              DateTime?              @db.Timestamptz(6)
+  timezone               String?                @default("UTC") @db.VarChar(255)
+  margin                 Json?                  @default("{}")
+  invoiceEmailRecipients String[]               @default([]) @db.VarChar(255)
+  netTerms               Int                    @default(30)
+  currency               String                 @default("USD") @db.VarChar(3)
+  isInternal             Boolean                @default(false)
+  defaultGlCodeId        String?                @db.Uuid
+  chart_of_accounts      chart_of_accounts?     @relation(fields: [defaultGlCodeId], references: [id], onDelete: SetNull)
+  organizations          organizations          @relation(fields: [organizationId], references: [id], onDelete: NoAction)
+  customer_alerts        customer_alerts[]
+  invoices               invoices[]
+  portal_magic_links     portal_magic_links[]
+  portal_sessions        portal_sessions[]
+  signal_events          signal_events[]
+  subscriptions          subscriptions[]
+
+  @@unique([externalId, organizationId])
+  @@index([externalId, organizationId], map: "idx_customers_external_org")
+  @@index([invoiceEmailRecipients], map: "idx_customers_invoice_email_recipients", type: Gin)
+  @@index([margin], map: "idx_customers_margin", type: Gin)
+  @@index([netTerms], map: "idx_customers_net_terms")
+}
+
+/// Portal Sessions (separate from admin dashboard sessions)
+model portal_sessions {
+  id             String        @id @default(uuid()) @db.Uuid
+  customerId     String        @db.Uuid
+  organizationId String        @db.Uuid
+  token          String        @unique @db.VarChar(255)
+  expiresAt      DateTime      @db.Timestamptz(6)
+  ipAddress      String?       @db.VarChar(255)
+  userAgent      String?
+  createdAt      DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime      @updatedAt @db.Timestamptz(6)
+  impersonatedBy String?       @db.Uuid
+  customers      customers     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  impersonator   users?        @relation("ImpersonatedPortalSessions", fields: [impersonatedBy], references: [id])
+  organizations  organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([organizationId])
+  @@index([token])
+  @@index([expiresAt])
+  @@index([impersonatedBy])
+  @@map("portal_sessions")
+}
+
+/// Portal Magic Link Tokens (for customer email verification)
+model portal_magic_links {
+  id             String        @id @default(uuid()) @db.Uuid
+  customerId     String        @db.Uuid
+  organizationId String        @db.Uuid
+  token          String        @unique @db.VarChar(255)
+  expiresAt      DateTime      @db.Timestamptz(6)
+  usedAt         DateTime?     @db.Timestamptz(6)
+  createdAt      DateTime      @default(now()) @db.Timestamptz(6)
+  customers      customers     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  organizations  organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([customerId])
+  @@index([expiresAt])
+  @@map("portal_magic_links")
+}
+
+model inbound_webhooks {
+  id                    String                       @id @db.Uuid
+  organization_id       String?                      @db.Uuid
+  source                enum_inbound_webhooks_source
+  event_type            String                       @db.VarChar(100)
+  event_id              String?                      @db.VarChar(255)
+  payload               Json
+  signature             String?
+  status                enum_inbound_webhooks_status @default(pending)
+  error_message         String?
+  processing_attempts   Int                          @default(0)
+  processed_at          DateTime?                    @db.Timestamptz(6)
+  processing_started_at DateTime?                    @db.Timestamptz(6)
+  created_at            DateTime                     @db.Timestamptz(6)
+  updated_at            DateTime                     @db.Timestamptz(6)
+  organizations         organizations?               @relation(fields: [organization_id], references: [id], onUpdate: NoAction)
+
+  @@index([event_type], map: "idx_inbound_webhooks_event_type")
+  @@index([organization_id], map: "idx_inbound_webhooks_org_id")
+  @@index([source, event_id], map: "idx_inbound_webhooks_source_event_id")
+  @@index([status], map: "idx_inbound_webhooks_status")
+}
+
+model invoice_line_items {
+  id                 String                       @id @db.Uuid
+  invoiceId          String                       @db.Uuid
+  description        String                       @db.VarChar(255)
+  quantity           Decimal                      @db.Decimal(12, 2)
+  unitPrice          Decimal                      @db.Decimal(12, 2)
+  amount             Decimal                      @db.Decimal(12, 2)
+  type               enum_invoice_line_items_type
+  taxCode            String?                      @db.VarChar(255)
+  discountCode       String?                      @db.VarChar(255)
+  pricingStrategyId  String?                      @db.Uuid
+  metadata           Json?                        @default("{}")
+  createdAt          DateTime                     @db.Timestamptz(6)
+  updatedAt          DateTime                     @db.Timestamptz(6)
+  deletedAt          DateTime?                    @db.Timestamptz(6)
+  invoices           invoices                     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  pricing_strategies pricing_strategies?          @relation(fields: [pricingStrategyId], references: [id])
+
+  @@index([invoiceId], map: "idx_invoice_line_items_invoice_id")
+  @@index([pricingStrategyId], map: "idx_invoice_line_items_pricing_strategy_id")
+}
+
+model invoice_payments {
+  id                           String                              @id @db.Uuid
+  invoiceId                    String                              @db.Uuid
+  amount                       Decimal                             @db.Decimal(12, 2)
+  paymentDate                  DateTime                            @db.Timestamptz(6)
+  paymentMethod                enum_invoice_payments_paymentMethod
+  reference                    String?                             @db.VarChar(255)
+  notes                        String?
+  recordedBy                   String?                             @db.Uuid
+  metadata                     Json?                               @default("{}")
+  currency                     String                              @default("USD") @db.VarChar(3)
+  status                       enum_invoice_payments_status        @default(succeeded)
+  createdAt                    DateTime                            @db.Timestamptz(6)
+  updatedAt                    DateTime                            @db.Timestamptz(6)
+  deletedAt                    DateTime?                           @db.Timestamptz(6)
+  provider_transaction_id      String?                             @db.VarChar(255)
+  provider_checkout_session_id String?                             @db.VarChar(255)
+  payment_provider_id          String?                             @db.Uuid
+  provider_status              String?                             @db.VarChar(50)
+  error_code                   String?                             @db.VarChar(100)
+  error_message                String?
+  refunded_amount              Decimal                             @default(0) @db.Decimal(15, 2)
+  refund_status                enum_invoice_payments_refund_status @default(none)
+  card_last4                   String?                             @db.VarChar(4)
+  card_brand                   String?                             @db.VarChar(20)
+  provider_fee                 Decimal?                            @db.Decimal(15, 2)
+  net_amount                   Decimal?                            @db.Decimal(15, 2)
+  receipt_url                  String?
+  receipt_email_sent           Boolean                             @default(false)
+  invoices                     invoices                            @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  payment_providers            payment_providers?                  @relation(fields: [payment_provider_id], references: [id], onUpdate: NoAction)
+  users                        users?                              @relation(fields: [recordedBy], references: [id], onDelete: NoAction)
+  refunds                      refunds[]
+
+  @@index([provider_checkout_session_id], map: "idx_invoice_payments_checkout_session")
+  @@index([provider_transaction_id], map: "idx_invoice_payments_provider_tx_id")
+  // Cash-basis "Collected" windows on paymentDate on every dashboard
+  // render. Without this index that range scan is a full table scan.
+  @@index([paymentDate], map: "idx_invoice_payments_payment_date")
+}
+
+model invoices {
+  id                    String                              @id @db.Uuid
+  customerId            String                              @db.Uuid
+  subscriptionId        String?                             @db.Uuid
+  organizationId        String                              @db.Uuid
+  invoiceDate           DateTime                            @db.Timestamptz(6)
+  dueDate               DateTime                            @db.Timestamptz(6)
+  billingPeriodStart    DateTime                            @db.Timestamptz(6)
+  billingPeriodEnd      DateTime                            @db.Timestamptz(6)
+  invoiceType           enum_invoices_invoiceType           @default(subscription)
+  totalAmount           Decimal                             @db.Decimal(12, 2)
+  subtotal              Decimal                             @db.Decimal(12, 2)
+  taxAmount             Decimal?                            @default(0) @db.Decimal(12, 2)
+  discountAmount        Decimal?                            @default(0) @db.Decimal(12, 2)
+  status                enum_invoices_status?               @default(draft)
+  invoiceNumber         String                              @db.VarChar(255)
+  pdfUrl                String?                             @db.VarChar(255)
+  metadata              Json?                               @default("{}")
+  currency              String                              @default("USD") @db.VarChar(3)
+  netTerms              Int                                 @default(30)
+  amountPaid            Decimal                             @default(0) @db.Decimal(12, 2)
+  amountCredited        Decimal                             @default(0) @db.Decimal(12, 2)
+  amountDue             Decimal                             @default(0) @db.Decimal(12, 2)
+  statusReason          String?                             @db.VarChar(255)
+  pdfSha256             String?                             @db.VarChar(255)
+  autoCollectPayment    Boolean                             @default(false)
+  isFinalizedUsage      Boolean?                            @default(false)
+  lastUsageUpdateAt     DateTime?                           @db.Timestamptz(6)
+  invoiceGenerationType enum_invoices_invoiceGenerationType @default(automatic)
+  memo                  String?
+  createdAt             DateTime                            @db.Timestamptz(6)
+  updatedAt             DateTime                            @db.Timestamptz(6)
+  deletedAt             DateTime?                           @db.Timestamptz(6)
+  reminderStage         String?                             @default("none") @db.VarChar(20)
+  reminderCount         Int?                                @default(0)
+  lastReminderSentAt    DateTime?                           @db.Timestamptz(6)
+  nextReminderDate      DateTime?                           @db.Date
+  reminderPaused        Boolean?                            @default(false)
+  escalatedAt           DateTime?                           @db.Timestamptz(6)
+  escalationReason      String?
+  invoice_line_items    invoice_line_items[]
+  invoice_payments      invoice_payments[]
+  customers             customers                           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  organizations         organizations                       @relation(fields: [organizationId], references: [id], onDelete: NoAction)
+  subscriptions         subscriptions?                      @relation(fields: [subscriptionId], references: [id], onDelete: NoAction)
+
+  @@unique([organizationId, invoiceNumber], map: "invoices_org_invoiceNumber_unique")
+  @@index([customerId], map: "idx_invoices_customer_id")
+  @@index([dueDate], map: "idx_invoices_due_date")
+  @@index([escalatedAt], map: "idx_invoices_escalated")
+  @@index([invoiceGenerationType], map: "idx_invoices_generation_type")
+  @@index([invoiceDate], map: "idx_invoices_invoice_date")
+  @@index([isFinalizedUsage], map: "idx_invoices_is_finalized_usage")
+  @@index([lastUsageUpdateAt], map: "idx_invoices_last_usage_update")
+  @@index([nextReminderDate, status, reminderPaused], map: "idx_invoices_reminder_due")
+  @@index([reminderStage], map: "idx_invoices_reminder_stage")
+  @@index([status], map: "idx_invoices_status")
+  @@index([subscriptionId], map: "idx_invoices_subscription_id")
+  @@index([subscriptionId, invoiceType, billingPeriodStart], map: "idx_invoices_subscription_type_period")
+  @@index([invoiceType], map: "idx_invoices_type")
+}
+
+model organizations {
+  id                                                 String                                    @id @db.Uuid
+  name                                               String                                    @db.VarChar(255)
+  slug                                               String?                                   @unique @db.VarChar(255)
+  organizationInfo                                   String?
+  website                                            String?                                   @db.VarChar(255)
+  linkedin                                           String?                                   @db.VarChar(255)
+  logo                                               String?                                   @db.VarChar(255)
+  createdAt                                          DateTime                                  @default(now()) @db.Timestamptz(6)
+  updatedAt                                          DateTime                                  @default(now()) @updatedAt @db.Timestamptz(6)
+  timezone                                           String                                    @default("UTC") @db.VarChar(255)
+  tagline                                            String?                                   @db.VarChar(255)
+  address_line1                                      String?                                   @db.VarChar(255)
+  address_line2                                      String?                                   @db.VarChar(255)
+  city                                               String?                                   @db.VarChar(255)
+  state                                              String?                                   @db.VarChar(255)
+  zip_code                                           String?                                   @db.VarChar(255)
+  country                                            String?                                   @db.VarChar(255)
+  billing_email                                      String?                                   @db.VarChar(255)
+  billing_phone                                      String?                                   @db.VarChar(255)
+  default_currency                                   String?                                   @default("USD") @db.VarChar(255)
+  designjson                                         Json?                                     @default("{\"textColor\": \"#FFFFFF\", \"headerColor\": \"#2B3990\"}")
+  stripe_connect_account_id                          String?                                   @db.VarChar(255)
+  stripe_connect_type                                String?                                   @default("standard") @db.VarChar(255)
+  stripe_connect_charges_enabled                     Boolean?                                  @default(false)
+  stripe_connect_details_submitted                   Boolean?                                  @default(false)
+  stripe_connect_requirements                        Json?                                     @default("{}")
+  stripe_connect_onboarding_url                      String?                                   @db.VarChar(255)
+  stripe_connect_onboarding_url_expires              DateTime?                                 @db.Timestamptz(6)
+  owner_id                                           String?                                   @db.Uuid
+  max_team_size                                      Int?
+  team_features                                      Json?                                     @default("{}")
+  stripe_connect_status                              enum_organizations_stripe_connect_status?
+  onboarding_complete                                Boolean                                   @default(false)
+  onboarding_step                                    String?                                   @db.VarChar(255)
+  dashboard_mode                                     enum_organizations_dashboard_mode?
+  setup_method                                       String?                                   @db.VarChar(50)
+  theme                                              Json?
+  // Who this org's printed invoices say the bill is from
+  // ({ legalName?, addressLine1?, addressLine2?, city?, state?, postalCode?,
+  // country?, email? } — all optional, zod-validated in
+  // apps/dashboard/app/actions/org-billing-identity.ts). NULL = nothing
+  // stored; the invoice print then shows the org display name only, never
+  // an invented address or email.
+  billingIdentity                                    Json?
+  // The customer's own before-AI numbers, which the ROI report's
+  // "Without AI" comparison is built from ({ unitSingular?, unitPlural?,
+  // beforeAiCostPerUnit?, beforeAiRevenuePerUnit? } — all optional,
+  // zod-validated both ways in
+  // apps/dashboard/app/actions/org-roi-assumptions.ts). NULL = nothing stored;
+  // the report then shows its empty copy and computes nothing. The count of
+  // finished work for a window is deliberately NOT here — it is true for one
+  // date range only, so it rides in the URL beside the dates.
+  roiAssumptions                                     Json?
+  // When true, Stripe Checkout sessions for this org's invoices include
+  // `automatic_tax: { enabled: true }`, which delegates sales-tax calculation to Stripe Tax
+  // against the merchant's own tax registrations. Off by default — the merchant must opt in
+  // (and have Stripe Tax configured on their Stripe account) for charges to include tax.
+  stripeAutomaticTax                                 Boolean                                   @default(false)
+  agents                                             agents[]
+  api_key_usage_logs                                 api_key_usage_logs[]
+  api_keys                                           api_keys[]
+  ba_invitations                                     ba_invitation[]
+  ba_members                                         ba_member[]
+  blocks                                             blocks[]
+  cap_policies                                       cap_policies[]
+  cap_policy_events                                  cap_policy_events[]
+  chart_of_accounts                                  chart_of_accounts[]
+  credit_grants                                      credit_grants[]
+  customer_alerts                                    customer_alerts[]
+  finance_period_locks                               finance_period_locks[]
+  finance_period_lock_events                         finance_period_lock_events[]
+  customers                                          customers[]
+  inbound_webhooks                                   inbound_webhooks[]
+  invoices                                           invoices[]
+  org_model_mappings                                 org_model_mappings[]
+  users_organizations_owner_idTousers                users?                                    @relation("organizations_owner_idTousers", fields: [owner_id], references: [id], onUpdate: NoAction)
+  payment_providers                                  payment_providers[]
+  pool_alert_events                                  pool_alert_events[]
+  portal_magic_links                                 portal_magic_links[]
+  portal_sessions                                    portal_sessions[]
+  pricing_plans                                      pricing_plans[]
+  pricing_strategies                                 pricing_strategies[]
+  raw_ingest_events                                  raw_ingest_events[]
+  signal_classification_overrides                    signal_classification_overrides[]
+  signal_classification_rules                        signal_classification_rules[]
+  signal_events                                      signal_events[]
+  signals                                            signals[]
+  subscriptions                                      subscriptions[]
+  user_organizations                                 user_organizations[]
+  users_users_current_organization_idToorganizations users[]                                   @relation("users_current_organization_idToorganizations")
+  users_users_organizationIdToorganizations          users[]                                   @relation("users_organizationIdToorganizations")
+  initiatives                                        initiatives[]
+  user_dashboard_layouts                             user_dashboard_layouts[]
+  user_saved_views                                   user_saved_views[]
+  matters                                            matters[]
+  matter_routing_rules                               matter_routing_rules[]
+}
+
+model payment_providers {
+  id                String                      @id @db.Uuid
+  organization_id   String                      @db.Uuid
+  type              enum_payment_providers_type
+  code              String                      @db.VarChar(50)
+  name              String                      @db.VarChar(100)
+  encrypted_secrets String?
+  settings          Json                        @default("{}")
+  is_default        Boolean                     @default(false)
+  is_active         Boolean                     @default(true)
+  created_at        DateTime                    @db.Timestamptz(6)
+  updated_at        DateTime                    @db.Timestamptz(6)
+  deleted_at        DateTime?                   @db.Timestamptz(6)
+  invoice_payments  invoice_payments[]
+  organizations     organizations               @relation(fields: [organization_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([organization_id], map: "idx_payment_providers_org_id")
+  @@index([type], map: "idx_payment_providers_type")
+}
+
+model pricing_plans {
+  id                  String                @id @db.Uuid
+  name                String                @db.VarChar(255)
+  description         String?               @db.VarChar(255)
+  featuresList        Json?
+  agentId             String?               @db.Uuid
+  orgId               String                @db.Uuid
+  isActive            Boolean?              @default(true)
+  createdAt           DateTime              @db.Timestamptz(6)
+  updatedAt           DateTime              @db.Timestamptz(6)
+  deletedAt           DateTime?             @db.Timestamptz(6)
+  agent_pricing_plans agent_pricing_plans[]
+  agents              agents?               @relation(fields: [agentId], references: [id])
+  organizations       organizations         @relation(fields: [orgId], references: [id], onDelete: NoAction)
+  pricing_strategies  pricing_strategies[]
+  subscriptions       subscriptions[]
+}
+
+model agent_pricing_plans {
+  id            String        @id @default(uuid()) @db.Uuid
+  agentId       String        @db.Uuid
+  planId        String        @db.Uuid
+  createdAt     DateTime      @default(now()) @db.Timestamptz(6)
+  agents        agents        @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  pricing_plans pricing_plans @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, planId])
+  @@index([agentId])
+  @@index([planId])
+}
+
+model pricing_strategies {
+  id                 String                                    @id @db.Uuid
+  name               String                                    @db.VarChar(255)
+  agentId            String                                    @db.Uuid
+  orgId              String                                    @db.Uuid
+  planId             String                                    @db.Uuid
+  signalId           String?                                   @db.Uuid
+  tags               Json?                                     @default("[]")
+  chargeType         enum_pricing_strategies_chargeType
+  pricingModel       enum_pricing_strategies_pricingModel?
+  billingFrequency   enum_pricing_strategies_billingFrequency?
+  tiers              Json?
+  /// Money in dollars (CANON U1). 6 decimals for fractional-cent per-unit pricing (e.g., $0.0001 per API call).
+  rate               Decimal?                                  @db.Decimal(18, 6)
+  /// Per-metric burn rates for a credit_pool strategy — a map
+  /// {signalId: creditsPerUnit}. Pool membership = {this row's signalId} ∪
+  /// keys(creditRates); a missing key on the pool's own signal means rate 1.
+  /// NULL = single-metric pool, one credit per unit. Do NOT
+  /// reuse `rate` above for this: that column is DOLLARS (CANON U1), this map
+  /// is CREDITS per usage unit. Validated by credit-pool-tiers.ts at every
+  /// write lane; read through memberRate (credit-ledger.ts), never directly.
+  creditRates        Json?
+  active             Boolean?                                  @default(true)
+  minimumCommitment  Int?
+  createdAt          DateTime                                  @db.Timestamptz(6)
+  updatedAt          DateTime                                  @db.Timestamptz(6)
+  deletedAt          DateTime?                                 @db.Timestamptz(6)
+  invoice_line_items invoice_line_items[]
+  agents             agents                                    @relation(fields: [agentId], references: [id], onDelete: NoAction)
+  organizations      organizations                             @relation(fields: [orgId], references: [id], onDelete: NoAction)
+  pricing_plans      pricing_plans                             @relation(fields: [planId], references: [id], onDelete: Cascade)
+  signals            signals?                                  @relation(fields: [signalId], references: [id])
+
+  /// The ingest credit-pool membership check (findCreditPoolStrategy)
+  /// runs a per-event findFirst by planId; this index keeps that hot-path
+  /// lookup off a sequential scan.
+  @@index([planId])
+}
+
+model raw_ingest_events {
+  id             String                        @id @db.Uuid
+  organizationId String                        @db.Uuid
+  payload        Json
+  status         enum_raw_ingest_events_status @default(PENDING)
+  receivedAt     DateTime                      @db.Timestamptz(6)
+  processedAt    DateTime?                     @db.Timestamptz(6)
+  errorMsg       String?
+  eventId        String?                       @db.Uuid
+  createdAt      DateTime                      @db.Timestamptz(6)
+  updatedAt      DateTime                      @db.Timestamptz(6)
+  organizations  organizations                 @relation(fields: [organizationId], references: [id], onDelete: NoAction)
+  signal_events  signal_events[]
+
+  @@index([organizationId], map: "idx_raw_ingest_events_org")
+  @@index([organizationId, status, createdAt], map: "idx_raw_ingest_events_org_status_created")
+  @@index([payload(ops: JsonbPathOps)], map: "idx_raw_ingest_events_payload_gin", type: Gin)
+  @@index([receivedAt], map: "idx_raw_ingest_events_received_at")
+  @@index([status], map: "idx_raw_ingest_events_status")
+}
+
+model refunds {
+  id                 String              @id @db.Uuid
+  invoice_payment_id String              @db.Uuid
+  amount             Decimal             @db.Decimal(15, 2)
+  currency           String              @default("USD") @db.VarChar(3)
+  reason             String?             @db.VarChar(100)
+  status             enum_refunds_status @default(pending)
+  /// Unique provider-side refund identifier (e.g. Stripe re_xxx).
+  /// Unique to prevent webhook-retry
+  /// double-counting. PostgreSQL treats multiple NULLs as distinct so refunds that
+  /// haven't received a provider id yet (status=pending pre-webhook) don't collide.
+  provider_refund_id String?             @unique @db.VarChar(255)
+  error_code         String?             @db.VarChar(100)
+  error_message      String?
+  refunded_by        String?             @db.Uuid
+  created_at         DateTime            @db.Timestamptz(6)
+  updated_at         DateTime            @db.Timestamptz(6)
+  processed_at       DateTime?           @db.Timestamptz(6)
+  invoice_payments   invoice_payments    @relation(fields: [invoice_payment_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users              users?              @relation(fields: [refunded_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([invoice_payment_id], map: "idx_refunds_payment_id")
+  @@index([provider_refund_id], map: "idx_refunds_provider_id")
+  @@index([status], map: "idx_refunds_status")
+}
+
+model signal_events {
+  id                    String                            @id @db.Uuid
+  customerExternalId    String                            @db.VarChar(255)
+  customerId            String                            @db.Uuid
+  subscriptionId        String?                           @db.Uuid
+  organizationId        String                            @db.Uuid
+  agentId               String                            @db.Uuid
+  signalId              String?                           @db.Uuid
+  rawIngestEventId      String                            @db.Uuid
+  usageDate             DateTime                          @db.Timestamptz(6)
+  quantity              Decimal?                          @default(1) @db.Decimal(18, 6)
+  metadata              Json?                             @default("{}")
+  /// Money in dollars (CANON U1). 6 decimals so per-token LLM cost math (tokens × service_pricing.inputCost) keeps precision until R4 rounds at the presentation leaf.
+  usageCost             Decimal?                          @db.Decimal(18, 6)
+  usageCostData         Json?
+  eventProcessed        enum_signal_events_eventProcessed @default(PENDING)
+  eventProcessedAt      DateTime?                         @db.Timestamptz(6)
+  environment           enum_signal_events_environment?
+  /// Client-supplied idempotency key for exactly-once metering.
+  /// A repeat ingest with the same (organizationId, idempotencyKey) is collapsed
+  /// to the original event instead of creating a duplicate. Keyed on this SUCCESS
+  /// artifact (not raw_ingest_events) so a FAILED attempt — which never reaches
+  /// this row — is free to retry, while a SUCCEEDED turn replays as a no-op.
+  /// NULL = no key supplied (SDK callers who opt out); PostgreSQL treats multiple
+  /// NULLs as distinct, so keyless events never collide — same trick as
+  /// refunds.provider_refund_id above.
+  idempotencyKey        String?                           @db.VarChar(255)
+  /// Which legal matter this event's AI cost bills to. NULL = Unassigned
+  /// (a visible bucket on the Law tab, never a silent drop). SetNull on matter
+  /// delete so the event survives its matter; deleteMatter also clears matterSource.
+  matterId              String?                           @db.Uuid
+  /// HOW the event landed on its matter — tag (metadata.matterId at
+  /// ingest), rule (matter_routing_rules), or manual (operator). Audit exports
+  /// print this per row.
+  matterSource          enum_signal_events_matterSource?
+  createdAt             DateTime                          @db.Timestamptz(6)
+  updatedAt             DateTime                          @db.Timestamptz(6)
+  agents                agents                            @relation(fields: [agentId], references: [id], onDelete: NoAction)
+  customers             customers                         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  organizations         organizations                     @relation(fields: [organizationId], references: [id], onDelete: NoAction)
+  raw_ingest_events     raw_ingest_events                 @relation(fields: [rawIngestEventId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  signals               signals?                          @relation(fields: [signalId], references: [id])
+  subscriptions         subscriptions?                    @relation(fields: [subscriptionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  matters               matters?                          @relation(fields: [matterId], references: [id], onDelete: SetNull)
+  signal_event_services signal_event_services[]
+
+  /// Per-org NULL-safe unique = the dedup index. Scoped by org so the
+  /// SAME key value under two different org API keys never collides cross-tenant;
+  /// it IS the lookup index the pre-check's findFirst rides, and the constraint
+  /// the concurrent-double-POST race lands a P2002 on.
+  @@unique([organizationId, idempotencyKey], map: "uq_signal_events_org_idempotency")
+  @@index([agentId], map: "idx_signal_events_agent")
+  @@index([customerExternalId], map: "idx_signal_events_customer")
+  @@index([customerId, subscriptionId], map: "idx_signal_events_customer_subscription")
+  @@index([usageDate], map: "idx_signal_events_date")
+  @@index([eventProcessed], map: "idx_signal_events_event_processed")
+  @@index([organizationId], map: "idx_signal_events_org")
+  @@index([environment], map: "idx_signal_events_environment")
+  /// Every cost/revenue read (getCostMetrics, getRevenueMetrics,
+  /// getProfitabilityAnalytics, the SQL GROUP BY resolver) filters by
+  /// organizationId + a usageDate range in the SAME query. The separate
+  /// single-column indexes above only ever satisfy one side of that predicate;
+  /// this composite turns it into one range scan (equality on the leading
+  /// column, range on the second).
+  @@index([organizationId, usageDate], map: "idx_signal_events_org_usage_date")
+  /// The Unassigned count (WHERE matterId IS NULL) and every per-matter
+  /// rollup filter org + matterId in the same query; one composite serves both.
+  @@index([organizationId, matterId], map: "idx_signal_events_org_matter")
+}
+
+model signals {
+  id                              String                            @id @db.Uuid
+  name                            String                            @db.VarChar(255)
+  shortName                       String?                           @db.VarChar(255)
+  agentId                         String                            @db.Uuid
+  orgId                           String                            @db.Uuid
+  createdAt                       DateTime                          @db.Timestamptz(6)
+  updatedAt                       DateTime                          @db.Timestamptz(6)
+  deletedAt                       DateTime?                         @db.Timestamptz(6)
+  type                            enum_signals_type?
+  costCategory                    enum_signals_costCategory         @default(UNCLASSIFIED)
+  glCodeId                        String?                           @db.Uuid
+  pricing_strategies              pricing_strategies[]
+  signal_classification_overrides signal_classification_overrides[]
+  signal_events                   signal_events[]
+  signal_services                 signal_services[]
+  agents                          agents                            @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  organizations                   organizations                     @relation(fields: [orgId], references: [id], onDelete: NoAction)
+  chart_of_accounts               chart_of_accounts?                @relation(fields: [glCodeId], references: [id], onDelete: SetNull)
+
+  @@unique([agentId, name])
+  @@unique([agentId, shortName])
+}
+
+model subscription_change_logs {
+  id             String                                   @id @db.Uuid
+  subscriptionId String                                   @db.Uuid
+  changedBy      String                                   @db.Uuid
+  changeType     enum_subscription_change_logs_changeType
+  previousValues Json?
+  newValues      Json?
+  changeReason   String?                                  @db.VarChar(255)
+  metadata       Json?                                    @default("{}")
+  createdAt      DateTime                                 @db.Timestamptz(6)
+  updatedAt      DateTime                                 @db.Timestamptz(6)
+  users          users                                    @relation(fields: [changedBy], references: [id], onDelete: NoAction)
+  subscriptions  subscriptions                            @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+}
+
+model subscriptions {
+  id                                String                           @id @db.Uuid
+  name                              String                           @db.VarChar(255)
+  customerId                        String                           @db.Uuid
+  planId                            String                           @db.Uuid
+  agentId                           String                           @db.Uuid
+  startDate                         DateTime                         @db.Timestamptz(6)
+  endDate                           DateTime?                        @db.Timestamptz(6)
+  isForever                         Boolean?                         @default(false)
+  status                            enum_subscriptions_status?       @default(pending)
+  subscriptionDetails               Json?                            @default("{}")
+  billingCycle                      enum_subscriptions_billingCycle? @default(monthly)
+  /// Money in dollars (CANON U1). 6 decimals are available on the column; callers store ≤2, set straight from the DTO with no further math.
+  proratedAmount                    Decimal?                         @db.Decimal(10, 6)
+  cycleNumber                       Int                              @default(0)
+  timezone                          String                           @default("UTC") @db.VarChar(255)
+  currentBillingPeriodStart         DateTime?                        @db.Timestamptz(6)
+  currentBillingPeriodEnd           DateTime?                        @db.Timestamptz(6)
+  metadata                          Json?                            @default("{}")
+  createdAt                         DateTime                         @db.Timestamptz(6)
+  updatedAt                         DateTime                         @db.Timestamptz(6)
+  deletedAt                         DateTime?                        @db.Timestamptz(6)
+  nextRecurringInvoiceAt            DateTime                         @db.Timestamptz(6)
+  nextUsageInvoiceAt                DateTime                         @db.Timestamptz(6)
+  customCycleDays                   Int?
+  currentSubscriptionDraftInvoiceId String?                          @db.Uuid
+  currentUsageDraftInvoiceId        String?                          @db.Uuid
+  subscriptionInvoiceIssuanceDate   DateTime?                        @db.Timestamptz(6)
+  seatsCount                        Int?                             @default(0)
+  seatsInfo                         Json?                            @default("{}")
+  billingDay                        Int?
+  netTerms                          Int?                             @default(30)
+  autoCollectPayment                Boolean?                         @default(false)
+  invoiceMemo                       String?
+  organizationId                    String?                          @db.Uuid
+  billingModel                      enum_subscriptions_billingmodel? @default(subscription)
+  /// While true, credit-pool alerts for this subscription stay silent.
+  /// Durable config, so it lives on the subscription, never on the
+  /// rebuildable credit_pool_balances cache.
+  creditAlertsPaused                Boolean                          @default(false)
+  invoices                          invoices[]
+  credit_grants                     credit_grants[]
+  credit_ledger_entries             credit_ledger_entries[]
+  credit_pool_balances              credit_pool_balances?
+  pool_alert_events                 pool_alert_events[]
+  signal_events                     signal_events[]
+  subscription_change_logs          subscription_change_logs[]
+  agents                            agents                           @relation(fields: [agentId], references: [id], onDelete: NoAction)
+  customers                         customers                        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  organizations                     organizations?                   @relation(fields: [organizationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  pricing_plans                     pricing_plans                    @relation(fields: [planId], references: [id], onDelete: NoAction)
+
+  @@index([agentId, customerId, status], map: "idx_subscriptions_agent_customer_status")
+  @@index([currentBillingPeriodStart, currentBillingPeriodEnd], map: "idx_subscriptions_current_billing_period")
+  @@index([customerId, status], map: "idx_subscriptions_customer_status")
+  @@index([endDate], map: "idx_subscriptions_end_date")
+  @@index([nextRecurringInvoiceAt], map: "idx_subscriptions_next_recurring_invoice")
+  @@index([nextUsageInvoiceAt], map: "idx_subscriptions_next_usage_invoice")
+  @@index([startDate], map: "idx_subscriptions_start_date")
+  @@index([status], map: "idx_subscriptions_status")
+  @@index([status, endDate], map: "idx_subscriptions_status_end_date")
+  @@index([status, startDate], map: "idx_subscriptions_status_start_date")
+}
+
+model team_invitations {
+  id              String                       @id @db.Uuid
+  organization_id String                       @db.Uuid
+  email           String                       @db.VarChar(255)
+  role            enum_team_invitations_role   @default(member)
+  token           String                       @unique @db.VarChar(255)
+  invited_by      String                       @db.Uuid
+  status          enum_team_invitations_status @default(pending)
+  resend_count    Int                          @default(0)
+  expires_at      DateTime                     @db.Timestamptz(6)
+  accepted_at     DateTime?                    @db.Timestamptz(6)
+  accepted_by     String?                      @db.Uuid
+  created_at      DateTime                     @db.Timestamptz(6)
+  updated_at      DateTime                     @db.Timestamptz(6)
+
+  @@index([email], map: "idx_invitations_email")
+  @@index([organization_id], map: "idx_invitations_org_id")
+  @@index([status], map: "idx_invitations_status")
+  @@index([token], map: "idx_invitations_token")
+  @@index([email], map: "team_invitations_email")
+  @@index([organization_id], map: "team_invitations_organization_id")
+  @@index([status], map: "team_invitations_status")
+  @@index([token], map: "team_invitations_token")
+}
+
+model team_members {
+  id              String                   @id @db.Uuid
+  user_id         String                   @db.Uuid
+  organization_id String                   @db.Uuid
+  role            enum_team_members_role   @default(member)
+  status          enum_team_members_status @default(active)
+  invited_by      String?                  @db.Uuid
+  joined_at       DateTime?                @db.Timestamptz(6)
+  created_at      DateTime                 @db.Timestamptz(6)
+  updated_at      DateTime                 @db.Timestamptz(6)
+
+  @@unique([user_id, organization_id], map: "idx_team_members_user_org_unique")
+  @@unique([user_id, organization_id], map: "team_members_user_id_organization_id")
+  @@index([organization_id], map: "idx_team_members_org_id")
+  @@index([role], map: "idx_team_members_role")
+  @@index([status], map: "idx_team_members_status")
+  @@index([user_id], map: "idx_team_members_user_id")
+  @@index([organization_id], map: "team_members_organization_id")
+  @@index([role], map: "team_members_role")
+  @@index([status], map: "team_members_status")
+  @@index([user_id], map: "team_members_user_id")
+}
+
+model tokens {
+  id          String           @id @db.Uuid
+  token       String           @unique
+  userId      String           @db.Uuid
+  type        enum_tokens_type
+  expires     DateTime         @db.Timestamptz(6)
+  blacklisted Boolean?         @default(false)
+  createdAt   DateTime         @db.Timestamptz(6)
+  updatedAt   DateTime         @db.Timestamptz(6)
+  users       users            @relation(fields: [userId], references: [id], onDelete: NoAction)
+
+  @@index([token], map: "tokens_token")
+  @@index([userId], map: "tokens_user_id")
+}
+
+model user_organizations {
+  id                                        String                       @id @db.Uuid
+  userId                                    String                       @db.Uuid
+  organizationId                            String                       @db.Uuid
+  role                                      enum_user_organizations_role @default(member)
+  isDefault                                 Boolean?                     @default(false)
+  joinedAt                                  DateTime                     @db.Timestamptz(6)
+  invitedBy                                 String?                      @db.Uuid
+  createdAt                                 DateTime                     @db.Timestamptz(6)
+  updatedAt                                 DateTime                     @db.Timestamptz(6)
+  users_user_organizations_invitedByTousers users?                       @relation("user_organizations_invitedByTousers", fields: [invitedBy], references: [id])
+  organizations                             organizations                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  users_user_organizations_userIdTousers    users                        @relation("user_organizations_userIdTousers", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId], map: "user_organization_unique")
+  @@unique([userId, organizationId])
+  @@index([isDefault, userId], map: "user_organization_default_idx")
+  @@index([organizationId], map: "user_organization_organization_idx")
+  @@index([userId], map: "user_organization_user_idx")
+}
+
+model users {
+  id                                                         String                     @id @db.Uuid
+  name                                                       String                     @db.VarChar(255)
+  email                                                      String                     @unique @db.VarChar(255)
+  image                                                      String?
+  password                                                   String?                    @db.VarChar(255)
+  role                                                       enum_users_role?           @default(member)
+  isEmailVerified                                            Boolean?                   @default(false)
+  status                                                     enum_users_status          @default(active)
+  otp                                                        String?                    @db.VarChar(255)
+  otpExpiresAt                                               DateTime?                  @db.Timestamptz(6)
+  lastOtpSentAt                                              DateTime?                  @db.Timestamptz(6)
+  emailVerifiedAt                                            DateTime?                  @db.Timestamptz(6)
+  createdAt                                                  DateTime                   @db.Timestamptz(6)
+  updatedAt                                                  DateTime                   @db.Timestamptz(6)
+  organizationId                                             String?                    @db.Uuid
+  current_organization_id                                    String?                    @db.Uuid
+  last_organization_switch                                   DateTime?                  @db.Timestamptz(6)
+  google_id                                                  String?                    @unique @db.VarChar(255)
+  auth_provider                                              enum_users_auth_provider   @default(local)
+  persona                                                    String?                    @db.VarChar(50)
+  api_keys                                                   api_keys[]
+  ba_accounts                                                ba_account[]
+  ba_invitations                                             ba_invitation[]
+  ba_members                                                 ba_member[]
+  ba_sessions                                                ba_session[]
+  invoice_payments                                           invoice_payments[]
+  organizations_organizations_owner_idTousers                organizations[]            @relation("organizations_owner_idTousers")
+  impersonated_portal_sessions                               portal_sessions[]          @relation("ImpersonatedPortalSessions")
+  refunds                                                    refunds[]
+  subscription_change_logs                                   subscription_change_logs[]
+  tokens                                                     tokens[]
+  user_organizations_user_organizations_invitedByTousers     user_organizations[]       @relation("user_organizations_invitedByTousers")
+  user_organizations_user_organizations_userIdTousers        user_organizations[]       @relation("user_organizations_userIdTousers")
+  organizations_users_current_organization_idToorganizations organizations?             @relation("users_current_organization_idToorganizations", fields: [current_organization_id], references: [id])
+  organizations_users_organizationIdToorganizations          organizations?             @relation("users_organizationIdToorganizations", fields: [organizationId], references: [id])
+  user_dashboard_layouts                                     user_dashboard_layouts[]
+  user_saved_views                                           user_saved_views[]
+
+  @@index([current_organization_id], map: "idx_users_current_org")
+}
+
+/// Better Auth Session Table
+model ba_session {
+  id                   String   @id @default(uuid()) @db.VarChar(255)
+  expiresAt            DateTime
+  token                String   @unique @db.VarChar(255)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  ipAddress            String?  @db.VarChar(255)
+  userAgent            String?
+  userId               String   @db.Uuid
+  activeOrganizationId String?  @db.Uuid
+  impersonatedBy       String?  @db.VarChar(255)
+  users                users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("ba_session")
+}
+
+/// Better Auth Account Table (for OAuth and credentials)
+model ba_account {
+  id                    String    @id @default(uuid()) @db.VarChar(255)
+  accountId             String    @db.VarChar(255)
+  providerId            String    @db.VarChar(255)
+  userId                String    @db.Uuid
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  users                 users     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("ba_account")
+}
+
+/// Better Auth Verification Table (for OTP, email verification, etc.)
+model ba_verification {
+  id         String    @id @default(uuid()) @db.VarChar(255)
+  identifier String    @db.VarChar(255)
+  value      String    @db.Text
+  expiresAt  DateTime
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
+
+  @@index([identifier])
+  @@map("ba_verification")
+}
+
+/// Better Auth JWKS Table (for JWT key pairs)
+model ba_jwks {
+  id         String   @id @default(uuid()) @db.VarChar(255)
+  publicKey  String
+  privateKey String
+  createdAt  DateTime @default(now())
+
+  @@map("ba_jwks")
+}
+
+/// Better Auth Member Table (organization membership)
+model ba_member {
+  id             String        @id @default(uuid()) @db.VarChar(255)
+  organizationId String        @db.Uuid
+  userId         String        @db.Uuid
+  role           String        @default("member") @db.VarChar(50)
+  createdAt      DateTime      @default(now())
+  organizations  organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  users          users         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@index([organizationId])
+  @@map("ba_member")
+}
+
+/// Better Auth Invitation Table
+model ba_invitation {
+  id             String        @id @default(uuid()) @db.VarChar(255)
+  organizationId String        @db.Uuid
+  email          String        @db.VarChar(255)
+  role           String        @default("member") @db.VarChar(50)
+  status         String        @default("pending") @db.VarChar(50)
+  expiresAt      DateTime
+  inviterId      String        @db.Uuid
+  createdAt      DateTime      @default(now())
+  users          users         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+  organizations  organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([email])
+  @@map("ba_invitation")
+}
+
+/// Normalized pricing catalog for LLM models and third-party API services.
+/// Synced from OpenRouter + LiteLLM, plus the built-in rows in scripts/sync-service-pricing.ts.
+/// Users pick from this table when setting up agent metrics.
+model service_pricing {
+  id                    String                  @id @default(uuid()) @db.Uuid
+  externalId            String                  @unique @db.VarChar(255)
+  displayName           String                  @db.VarChar(255)
+  provider              String                  @db.VarChar(100)
+  serviceType           String                  @db.VarChar(50)
+  /// Money in dollars PER costUnit (CANON U1 = dollars, not cents). For LLM rows (costUnit '1M tokens') this is dollars per MILLION tokens — a $3/1M-token model stores 3, NOT 0.000003: sync-service-pricing.ts writes rate×1,000,000 and calculateEventCost divides by 1,000,000. For non-token rows it's dollars per the named unit ('1K requests', 'minute', ...).
+  inputCost             Decimal?                @db.Decimal(18, 10)
+  /// Money in dollars PER costUnit — dollars per MILLION tokens on LLM rows (CANON U1). See inputCost above.
+  outputCost            Decimal?                @db.Decimal(18, 10)
+  /// Money in dollars per MILLION cache-READ tokens on LLM rows (CANON U1; same per-costUnit convention as inputCost). The price of reading tokens back out of the provider's prompt cache (a cache "hit") — ~0.1× inputCost on Anthropic. Null for non-LLM rows and for sources that don't expose cache pricing.
+  cacheReadCost         Decimal?                @db.Decimal(18, 10)
+  /// Money in dollars per MILLION cache-WRITE tokens on LLM rows (CANON U1; same per-costUnit convention as inputCost). The price of writing tokens INTO the prompt cache (cache creation). On Anthropic LLM rows the sync script (scripts/sync-service-pricing.ts) OVERRIDES the feed value and stores the 1-hour-TTL ceiling (2× inputCost) so an unknown TTL can never under-bill; an event that proves the 5-minute flavor (metadata.cacheWriteTtl = "5m") is priced at 1.25× inputCost via applyCacheWriteTtl in model-pricing.ts. Null for non-LLM/cache-less rows.
+  cacheWriteCost        Decimal?                @db.Decimal(18, 10)
+  costUnit              String                  @db.VarChar(50)
+  contextWindow         Int?
+  source                String                  @db.VarChar(50)
+  isApi                 Boolean                 @default(false)
+  isActive              Boolean                 @default(true)
+  createdAt             DateTime                @default(now()) @db.Timestamptz(6)
+  updatedAt             DateTime                @updatedAt @db.Timestamptz(6)
+  canonicalName         String                  @db.VarChar(255)
+  org_model_mappings    org_model_mappings[]
+  signal_services       signal_services[]
+  signal_event_services signal_event_services[]
+
+  @@index([serviceType])
+  @@index([provider])
+  @@index([source])
+  @@index([provider, canonicalName, isActive])
+  @@map("service_pricing")
+}
+
+/// Links a metric (signal) to the services it uses.
+/// Example: "Summarize document" uses an LLM plus a web search API.
+/// This is the join table that enables "Cost Breakdown by Service" queries.
+model signal_services {
+  id               String          @id @default(uuid()) @db.Uuid
+  signalId         String          @db.Uuid
+  servicePricingId String          @db.Uuid
+  createdAt        DateTime        @default(now()) @db.Timestamptz(6)
+  service_pricing  service_pricing @relation(fields: [servicePricingId], references: [id], onDelete: Cascade)
+  signals          signals         @relation(fields: [signalId], references: [id], onDelete: Cascade)
+
+  @@unique([signalId, servicePricingId])
+  @@index([signalId])
+  @@index([servicePricingId])
+  @@map("signal_services")
+}
+
+/// Per-service cost breakdown for a signal_event. Mirrors the
+/// invoices -> invoice_line_items pattern: the parent signal_events row
+/// holds the aggregated usageCost (sum across children); each child row
+/// records ONE service's contribution (model, provider, volume, cost).
+///
+/// Single-service events have one child row. Multi-service events (one
+/// business outcome backed by multiple services such as Claude tokens
+/// plus Google Maps queries) have one parent and N children.
+///
+/// Status mirrors the parent's enum so per-service status is visible:
+/// a child can be PROCESSED with cost, NEEDS_COST_BACKFILL when its
+/// model is not yet mapped, or MISSING_VOLUME_DATA when tokens or
+/// quantity are absent. Parent status is derived from children
+/// (canon: parent.usageCost = SUM(children.usageCost) when all children
+/// resolved, else null).
+model signal_event_services {
+  id               String                            @id @default(uuid()) @db.Uuid
+  signalEventId    String                            @db.Uuid
+  model            String                            @db.VarChar(255)
+  modelProvider    String                            @db.VarChar(100)
+  inputTokens      Int?
+  outputTokens     Int?
+  /// Cache-READ tokens for this service (prompt-cache hits). Priced at service_pricing.cacheReadCost. Null when the caller sent no cache counts.
+  cacheReadTokens  Int?
+  /// Cache-WRITE tokens for this service (prompt-cache creation). Priced at service_pricing.cacheWriteCost. Null when absent.
+  cacheWriteTokens Int?
+  quantity         Decimal?                          @db.Decimal(18, 6)
+  servicePricingId String?                           @db.Uuid
+  /// Money in dollars (CANON U1). Per-service breakdown of signal_events.usageCost; same precision rationale.
+  usageCost        Decimal?                          @db.Decimal(18, 6)
+  usageCostData    Json?
+  eventStatus      enum_signal_events_eventProcessed @default(PENDING)
+  createdAt        DateTime                          @default(now()) @db.Timestamptz(6)
+  signal_events    signal_events                     @relation(fields: [signalEventId], references: [id], onDelete: Cascade)
+  service_pricing  service_pricing?                  @relation(fields: [servicePricingId], references: [id], onDelete: SetNull)
+
+  @@index([signalEventId], map: "idx_signal_event_services_event")
+  @@index([servicePricingId], map: "idx_signal_event_services_pricing")
+  @@index([model, modelProvider], map: "idx_signal_event_services_model")
+  @@index([eventStatus], map: "idx_signal_event_services_status")
+  @@map("signal_event_services")
+}
+
+/// Org-scoped model mappings. When a customer maps an unknown model string
+/// to a known service_pricing entry, the mapping lives here — private to
+/// that org. The global service_pricing catalog is never written to by customers.
+model org_model_mappings {
+  id              String          @id @default(uuid()) @db.Uuid
+  organizationId  String          @db.Uuid
+  sourceModel     String          @db.VarChar(255)
+  sourceProvider  String          @db.VarChar(100)
+  targetPricingId String          @db.Uuid
+  createdAt       DateTime        @default(now()) @db.Timestamptz(6)
+  organizations   organizations   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  service_pricing service_pricing @relation(fields: [targetPricingId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, sourceModel, sourceProvider])
+  @@index([organizationId, sourceModel, sourceProvider])
+  @@map("org_model_mappings")
+}
+
+enum enum_api_keys_keyType {
+  publishable
+  secret
+}
+
+enum enum_api_keys_status {
+  active
+  revoked
+}
+
+enum enum_blocks_status {
+  active
+  inactive
+}
+
+enum enum_blocks_type {
+  payment_info
+  payment_history
+  subscriptions
+  customer_info
+  invoices
+}
+
+enum enum_customers_status {
+  active
+  inactive
+  suspended
+}
+
+enum enum_inbound_webhooks_source {
+  stripe
+}
+
+enum enum_inbound_webhooks_status {
+  pending
+  processing
+  succeeded
+  failed
+}
+
+enum enum_invoice_line_items_type {
+  recurring
+  usage
+  onetime
+  tax
+  discount
+  seat_based
+}
+
+enum enum_invoice_payments_paymentMethod {
+  stripe
+  ach
+  wire
+  check
+  cash
+  other
+}
+
+enum enum_invoice_payments_refund_status {
+  none
+  partial
+  full
+}
+
+enum enum_invoice_payments_status {
+  succeeded
+  failed
+  pending
+}
+
+enum enum_invoices_invoiceGenerationType {
+  automatic
+  manual
+}
+
+enum enum_invoices_invoiceType {
+  subscription
+  usage
+}
+
+enum enum_invoices_status {
+  draft
+  pending
+  issued
+  paid
+  overdue
+  void
+  refunded
+}
+
+enum enum_organizations_dashboard_mode {
+  cost_tracking
+  revenue
+  full
+}
+
+enum enum_organizations_stripe_connect_status {
+  pending
+  active
+  restricted
+  inactive
+}
+
+enum enum_payment_providers_type {
+  stripe
+}
+
+enum enum_pricing_strategies_billingFrequency {
+  monthly
+  yearly
+}
+
+enum enum_pricing_strategies_chargeType {
+  onetime
+  recurring
+  usage
+  seat_based
+}
+
+enum enum_pricing_strategies_pricingModel {
+  graduated
+  volume
+  flat
+  credit_pool
+}
+
+enum enum_raw_ingest_events_status {
+  PENDING
+  PROCESSED
+  ERROR
+}
+
+enum enum_refunds_status {
+  pending
+  succeeded
+  failed
+  canceled
+}
+
+enum enum_signal_events_eventProcessed {
+  PENDING
+  PROCESSED
+  ERROR
+  NEEDS_COST_BACKFILL
+  MISSING_VOLUME_DATA
+}
+
+enum enum_signal_events_environment {
+  production
+  staging
+  development
+  testing
+}
+
+enum enum_signals_costCategory {
+  PRODUCTION_COGS
+  DEVELOPMENT_RD
+  SALES_SM
+  GENERAL_GA
+  INTERNAL_TOOL
+  UNCLASSIFIED
+}
+
+enum enum_signal_classification_overrides_source {
+  inline_dropdown
+  bulk_suggest_button
+  api_patch
+}
+
+enum enum_account_type {
+  COGS
+  OPEX_RD
+  OPEX_GA
+  OPEX_SM
+}
+
+enum enum_signals_type {
+  usage
+  volume
+}
+
+enum enum_subscription_change_logs_changeType {
+  created
+  updated
+  status_change
+  plan_change
+  renewal
+}
+
+enum enum_subscriptions_billingCycle {
+  monthly
+  yearly
+  custom
+}
+
+enum enum_subscriptions_billingmodel {
+  subscription
+  usage
+  hybrid
+}
+
+enum enum_subscriptions_status {
+  upcoming
+  active
+  ended
+  canceled
+  expired
+  pending
+}
+
+enum enum_team_invitations_role {
+  admin
+  member
+}
+
+enum enum_team_invitations_status {
+  pending
+  accepted
+  expired
+  cancelled
+}
+
+enum enum_team_members_role {
+  admin
+  member
+}
+
+enum enum_team_members_status {
+  active
+  inactive
+}
+
+enum enum_tokens_type {
+  access
+  refresh
+  resetPassword
+  verifyEmail
+}
+
+enum enum_user_organizations_role {
+  member
+  owner
+  superadmin
+}
+
+enum enum_users_auth_provider {
+  local
+  google
+}
+
+enum enum_users_role {
+  member
+  owner
+  superadmin
+}
+
+enum enum_users_status {
+  active
+  blacklisted
+}
+
+/// Generic key/count/window throttle table owned by app code.
+/// Used by the portal `/r/<token>` redeem route
+/// (key = "portal-redeem:<ip>"), keyed per-IP with a 60s sliding window
+/// (max 10 redeems per IP per minute).
+///
+/// Designed to be extensible — additional endpoints that need a
+/// Postgres-backed counter can reuse this table with their own key prefix
+/// instead of spawning a new table per use case.
+///
+/// Nothing deletes stale rows, so rows accumulate over time. Rows with
+/// lastEventAt older than 7 days are safe to prune.
+model app_throttle {
+  id          String   @id @default(uuid())
+  key         String   @unique @db.VarChar(255)
+  count       Int      @default(0)
+  windowStart DateTime @default(now()) @db.Timestamptz(6)
+  lastEventAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([key])
+  @@map("app_throttle")
+}
+
+/// Per-org configurable rules that drive the "Suggest classifications" button on the
+/// Cost Management page. Each rule is a case-insensitive substring match against a
+/// signal name; the first rule (by ascending priority) that matches assigns its
+/// category. `agentId` is optional — when set, the rule only applies to signals on
+/// that agent (lets different agents reuse the same signal name with different
+/// classifications). `isDefault` marks the seed rules so the UI can offer
+/// "Restore defaults" without touching user-added rules.
+model signal_classification_rules {
+  id        String                    @id @default(uuid()) @db.Uuid
+  orgId     String                    @db.Uuid
+  pattern   String                    @db.VarChar(255)
+  category  enum_signals_costCategory
+  priority  Int                       @default(100)
+  agentId   String?                   @db.Uuid
+  isDefault Boolean                   @default(false)
+  createdAt DateTime                  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime                  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  organizations organizations @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  agents        agents?       @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, pattern, agentId])
+  @@index([orgId, priority])
+}
+
+/// Per-org chart of accounts entries for AI cost coding. Each row is a GL code
+/// the accountant maps signals to so the journal-entry export can
+/// produce QuickBooks IIF / NetSuite CSV / Xero CSV that posts to the right
+/// account. Defaults are seeded from a standard AI-cost chart
+/// (5100 AI Inference, 5110 AI Infrastructure, 5120 AI Monitoring, 6800 R&D,
+/// 7100 Internal AI Tooling). `isDefault` marks the seed rows so "Restore
+/// defaults" can recreate them without touching user-added codes.
+model chart_of_accounts {
+  id             String                    @id @default(uuid()) @db.Uuid
+  orgId          String                    @db.Uuid
+  glCode         String                    @db.VarChar(50)
+  glName         String                    @db.VarChar(255)
+  costCategory   enum_signals_costCategory
+  accountingType enum_account_type
+  isDefault      Boolean                   @default(false)
+  description    String?                   @db.VarChar(1000)
+  createdAt      DateTime                  @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime                  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  organizations organizations @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  signals       signals[]
+  customers     customers[]
+
+  @@unique([orgId, glCode])
+  @@index([orgId])
+}
+
+/// Audit log: every time a signal's costCategory is changed, record what was suggested,
+/// what the user picked, and how the change was triggered. The data can feed a
+/// frequency-based learner ("signals containing X are reclassified to Y 8/10 times —
+/// add this as a rule?"). SDK auto-classifications are intentionally NOT logged here —
+/// they're deterministic from the environment field, not a learning signal.
+model signal_classification_overrides {
+  id                 String                                      @id @default(uuid()) @db.Uuid
+  orgId              String                                      @db.Uuid
+  signalId           String                                      @db.Uuid
+  signalNameSnapshot String                                      @db.VarChar(255)
+  agentIdSnapshot    String?                                     @db.Uuid
+  suggestedCategory  enum_signals_costCategory?
+  chosenCategory     enum_signals_costCategory
+  userId             String?                                     @db.Uuid
+  source             enum_signal_classification_overrides_source
+  createdAt          DateTime                                    @default(now()) @db.Timestamptz(6)
+
+  organizations organizations @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  signals       signals       @relation(fields: [signalId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, createdAt])
+  @@index([signalId])
+}
+
+/// Period lock for the month-end close. When an accountant CLOSES a billing
+/// period, the app freezes that period's posted numbers into `snapshot` so a later
+/// reclassification (signals.costCategory) or GL remap (signals.glCodeId) can
+/// NOT silently rewrite a journal CSV that was already posted to the ledger.
+/// The read path (getJournalExport / getJournalAuditDetail /
+/// getCostClassificationBreakdown / getDefensibilityScore) serves this frozen
+/// snapshot verbatim for a locked window instead of recomputing from live
+/// signal state. One lock per (org, period window); reopening deletes the row.
+model finance_period_locks {
+  id              String   @id @default(uuid()) @db.Uuid
+  orgId           String   @db.Uuid
+  /// Inclusive UTC window start — equals the value parseWindowFilter resolves
+  /// for the period, so the read-path guard matches by exact equality.
+  periodStart     DateTime @db.Timestamptz(6)
+  /// Inclusive UTC window end (end-of-month 23:59:59.999Z for a past month).
+  periodEnd       DateTime @db.Timestamptz(6)
+  /// Human label shown in the UI, e.g. "May 2026".
+  periodLabel     String   @db.VarChar(255)
+  /// Frozen close payload: { version, journal, audit, breakdown, score }. JSON
+  /// so the snapshot survives schema drift in the underlying payload shapes.
+  snapshot        Json
+  /// Snapshot format version — lets a future payload-shape change be detected
+  /// and safely degraded to a live recompute instead of crashing.
+  snapshotVersion Int      @default(1)
+  lockedAt        DateTime @default(now()) @db.Timestamptz(6)
+  /// Who closed the books. Nullable so a write never fails if the session user
+  /// can't be resolved.
+  lockedByUserId  String?  @db.Uuid
+
+  organizations organizations @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, periodStart, periodEnd])
+  @@index([orgId, periodStart])
+  @@map("finance_period_locks")
+}
+
+/// Append-only
+/// audit trail for closing AND reopening a billing period. Closing the books is
+/// a SOX segregation-of-duties control, so every close and every reopen has to
+/// leave a durable, queryable "who did it, when" record. The close attribution
+/// also lives on finance_period_locks (lockedByUserId/lockedAt) — but a REOPEN
+/// deletes that lock row, so this table is the ONLY place a reopen is ever
+/// recorded. Rows are written here, never updated or deleted by the app
+/// (append-only by convention; not DB-enforced).
+model finance_period_lock_events {
+  id          String   @id @default(uuid()) @db.Uuid
+  orgId       String   @db.Uuid
+  /// Inclusive UTC window start of the period that was closed/reopened — the
+  /// same value parseWindowFilter resolves, so it matches
+  /// finance_period_locks.periodStart for the same window.
+  periodStart DateTime @db.Timestamptz(6)
+  /// Inclusive UTC window end of the period.
+  periodEnd   DateTime @db.Timestamptz(6)
+  /// Human label of the period, e.g. "May 2026" (copied from the lock row so the
+  /// audit reads without re-deriving it).
+  periodLabel String   @db.VarChar(255)
+  /// What happened: 'closed' or 'reopened'. A plain String (not a Postgres enum)
+  /// because a 2-value field doesn't justify a new enum type — same call as
+  /// ba_member.role / ba_invitation.status, which are plain VarChar.
+  action      String   @db.VarChar(20)
+  /// Who did it. Nullable on purpose (mirrors finance_period_locks.lockedByUserId)
+  /// so an audit write can never fail just because the session user can't be
+  /// resolved. Intentionally diverges from subscription_change_logs.changedBy
+  /// (non-null) — an audit write must not throw.
+  actorUserId String?  @db.Uuid
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+
+  organizations organizations @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, periodStart])
+  @@map("finance_period_lock_events")
+}
+
+/// A user's saved tile layout for
+/// one dashboard page (Money/FinOps/Build/ROI/MF IQ). No-row = the page's
+/// code-default layout; "reset" deletes the row rather than writing a
+/// synthetic default back. `page` is code-validated against the catalog's
+/// page ids (no pg enum, so adding a page needs no migration). `tiles` is
+/// catalog-validated server-side (component/dimension/
+/// size whitelists) before it's ever written — see
+/// apps/dashboard/src/lib/component-catalog.ts.
+model user_dashboard_layouts {
+  id            String        @id @default(uuid()) @db.Uuid
+  userId        String        @db.Uuid
+  orgId         String        @db.Uuid
+  page          String        @db.VarChar(50) // code-validated against DASHBOARD_PAGE_IDS; no pg enum, so adding a page needs no migration
+  tiles         Json // [{ component, dimension?, size }] — catalog-validated (below)
+  createdAt     DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime      @default(now()) @updatedAt @db.Timestamptz(6)
+  users         users         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizations organizations @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, orgId, page])
+  @@index([orgId])
+}
+
+/// A user's named filter preset — a saved
+/// (page, dimension, period, entity-filter) combination they can re-apply
+/// with one click. `filters` carries its own scope (page/dimension/period/
+/// customerId/etc.) rather than being tied to a fixed column shape, since
+/// which filters apply differs per page.
+model user_saved_views {
+  id            String        @id @default(uuid()) @db.Uuid
+  userId        String        @db.Uuid
+  orgId         String        @db.Uuid
+  name          String        @db.VarChar(255)
+  filters       Json // { page?, dimension?, period?, customerId?, ... } — scope lives inside
+  createdAt     DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime      @default(now()) @updatedAt @db.Timestamptz(6)
+  users         users         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizations organizations @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, orgId, name])
+  @@index([userId, orgId])
+}
+
+/// An org-level goal with a start/end
+/// window ("the ROI page's window"). Org-content, not per-user personalization
+/// — writes are money writes (assertMoneyManager), same as chart_of_accounts.
+/// Targets are manual only; actuals are computed at read time from canon
+/// over the initiative's window, never stored.
+model initiatives {
+  id                 String               @id @default(uuid()) @db.Uuid
+  orgId              String               @db.Uuid
+  name               String               @db.VarChar(255)
+  description        String?              @db.VarChar(1000)
+  status             String               @default("active") @db.VarChar(20) // 'active'|'archived' — code-validated, no pg enum
+  startDate          DateTime             @db.Timestamptz(6) // the ROI page's window
+  endDate            DateTime?            @db.Timestamptz(6) // null = ongoing
+  /// The ONE matter this initiative measures, or null for the
+  /// whole organization. SetNull mirrors signal_events.matterId — deleting a
+  /// matter never deletes the goal that pointed at it; the initiative simply
+  /// falls back to org-wide reads.
+  matterId           String?              @db.Uuid
+  /// The matter's number as it read when the scope was set. Written and
+  /// cleared by the same action that writes matterId, so SetNull cannot
+  /// erase it — it is the ONLY trace that a deleted matter was ever the
+  /// scope, and the card's "the matter this initiative pointed at was
+  /// deleted" line is the one thing that reads it. Never the display source
+  /// while matterId is set (the relation is, so a renumbered matter reads
+  /// fresh).
+  scopedMatterNumber String?              @db.VarChar(255)
+  createdByUserId    String?              @db.Uuid // attribution-only; nullable like finance_period_locks.lockedByUserId
+  createdAt          DateTime             @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime             @default(now()) @updatedAt @db.Timestamptz(6)
+  organizations      organizations        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  matters            matters?             @relation(fields: [matterId], references: [id], onDelete: SetNull)
+  initiative_targets initiative_targets[]
+
+  @@index([orgId, status])
+  @@index([matterId])
+}
+
+/// One manual target for an initiative
+/// — a metric, a goal value, and which side of it is "good" (lte/gte). No
+/// uniqueness on (initiativeId, metric): the write action treats the set of
+/// targets for an initiative as replace-all, not per-metric upsert.
+model initiative_targets {
+  id             String      @id @default(uuid()) @db.Uuid
+  initiativeId   String      @db.Uuid
+  metric         String      @db.VarChar(50) // code-validated registry: 'cost'|'revenue'|'margin'|'marginPercent'|'costPerTask'|'eventCount'|'unmappedCount'
+  targetValue    Decimal     @db.Decimal(18, 6) // dollars for money metrics per canon U1/U3 (bare name = dollars)
+  baselineValue  Decimal?    @db.Decimal(18, 6) // starting value; null = no baseline, progress falls back to the no-baseline forms
+  baselineSource String?     @db.VarChar(10) // 'auto' = measured from org data as of startDate, 'manual' = typed by a person; null = treated as manual
+  direction      String      @db.VarChar(4) // 'lte'|'gte' — is under or over the goal
+  createdAt      DateTime    @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime    @default(now()) @updatedAt @db.Timestamptz(6)
+  initiatives    initiatives @relation(fields: [initiativeId], references: [id], onDelete: Cascade)
+
+  @@index([initiativeId])
+}
+
+/// A spend-cap policy for AI coding-agent spend,
+/// set by a non-technical decision-maker (owner/finance only) and enforced
+/// device-side by the code-cost-clarity meter's brake. The hierarchy is org ceiling -> optional
+/// team/dev caps beneath it, never above it; that rule is enforced in the
+/// SHARED validation path (packages/db/src/lib/cap-policy.ts), used by every
+/// write, not just one controller. This is STORAGE + read-back only: there is
+/// NO server-side enforcement. The device pulls the spend read-back plus this
+/// policy and brakes itself, failing open on stale/unreachable state.
+model cap_policies {
+  id              String   @id @default(uuid()) @db.Uuid
+  orgId           String   @db.Uuid
+  /// Who this cap governs: 'org' (the ceiling), 'team', or 'dev'.
+  scope           String   @db.VarChar(20)
+  /// The scope's target. 'dev' -> the developer's customerExternalId (the email
+  /// that IS the per-dev attribution key on signal_events). 'team' -> an
+  /// org-defined team label. 'org' -> null (one ceiling per org + provider).
+  scopeValue      String?  @db.VarChar(255)
+  /// Which provider's spend this cap governs: 'all', or one provider matching
+  /// the modelProvider string stored on signal_event_services
+  /// ('anthropic' | 'openai' | 'google' | 'xai' | ...).
+  providerScope   String   @db.VarChar(50)
+  /// Cap amount in dollars (CANON U1). 6 decimals for parity with
+  /// signal_events.usageCost so a cap can be compared to spend without a scale hop.
+  amountUsd       Decimal  @db.Decimal(18, 6)
+  /// Reset cadence: 'day' | 'week' | 'month'. Windows roll at UTC (platform-owned
+  /// so every device agrees on the boundary); computed by currentPeriodWindow().
+  period          String   @db.VarChar(20)
+  /// 'track' (watch + alert, blocks nothing) or 'enforce' (device hard-stops).
+  /// EXACTLY these two names, the same mode vocabulary credit pools use, so
+  /// there is one mental model across the whole product.
+  mode            String   @db.VarChar(20)
+  /// Optional cool-off window in hours: after a cap trips, how long the device
+  /// keeps braking before it re-evaluates. Null = no cool-off.
+  coolOffHours    Int?
+  /// The alert ladder — whole percents of this cap
+  /// (default 50/80/100) at which a heads-up email fires. Org-configurable via
+  /// the cap create/update API; bounds (1..100, <=5 entries, strictly ascending)
+  /// are enforced in the write DTO.
+  alertThresholds Int[]    @default([50, 80, 100])
+  /// Attribution-only: who last wrote this policy. Nullable so a write never
+  /// fails when the session user can't be resolved (mirrors finance_period_locks).
+  createdByUserId String?  @db.Uuid
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  organizations    organizations      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  cap_alert_events cap_alert_events[]
+
+  /// One cap per (org, scope, scopeValue, provider). A team/dev cap is unique by
+  /// its scopeValue; the single org ceiling (scopeValue = NULL) is additionally
+  /// kept unique per provider in the write path (Postgres treats NULLs as
+  /// distinct, so the DB constraint alone can't dedupe the ceiling).
+  @@unique([orgId, scope, scopeValue, providerScope])
+  @@index([orgId])
+  @@map("cap_policies")
+}
+
+/// Append-only audit trail for cap-policy writes.
+/// The product's core trust claim ("the cap that actually caps") collapses
+/// without a durable record of who changed which cap, when. Mirrors finance_period_lock_events: a
+/// plain-String action, a nullable actorUserId so an audit write can never
+/// throw, and rows are written but never updated or deleted by the app.
+model cap_policy_events {
+  id             String   @id @default(uuid()) @db.Uuid
+  orgId          String   @db.Uuid
+  /// The policy this event describes. Nullable because a 'deleted' event
+  /// outlives the cap_policies row it references (that row is gone).
+  capPolicyId    String?  @db.Uuid
+  /// 'created' | 'updated' | 'deleted'. A plain String, not a Postgres enum — a
+  /// small closed set doesn't justify a new enum type (same call as
+  /// finance_period_lock_events.action).
+  action         String   @db.VarChar(20)
+  /// Policy state before this change (null on create).
+  previousValues Json?
+  /// Policy state after this change (null on delete).
+  newValues      Json?
+  /// Who did it. Nullable on purpose so an audit write never fails just because
+  /// the session user can't be resolved.
+  actorUserId    String?  @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+
+  organizations organizations @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, createdAt])
+  @@map("cap_policy_events")
+}
+
+/// The persistent dedup ledger for ladder alerts.
+/// One row per (cap, rung, period-window): the unique key makes a rung's alert
+/// fire exactly ONCE per period window, idempotent across cron re-runs. The
+/// windowStart is part of the key so a fresh period re-arms every rung. Rows
+/// FK-cascade with their cap — once a cap is gone, its alert history is moot.
+model cap_alert_events {
+  id          String   @id @default(uuid()) @db.Uuid
+  capPolicyId String   @db.Uuid
+  /// The rung that fired, as a whole percent (matches a cap_policies.alertThresholds entry).
+  rung        Int
+  /// The UTC period-window start this alert belongs to (currentPeriodWindow().start).
+  windowStart DateTime @db.Timestamptz(6)
+  sentAt      DateTime @default(now()) @db.Timestamptz(6)
+  /// The address the alert went to (the org's billingIdentity.email at send time).
+  recipient   String   @db.VarChar(255)
+
+  cap_policies cap_policies @relation(fields: [capPolicyId], references: [id], onDelete: Cascade)
+
+  @@unique([capPolicyId, rung, windowStart])
+  @@map("cap_alert_events")
+}
+
+/// One row per bucket of credit granted to a
+/// subscription. The pool balance is DERIVED from credit_ledger_entries and
+/// recomputable at any time (lib/credit-ledger.ts computeBalance); the
+/// denormalized consumedUnits here lets the draw path pick grants without
+/// replaying history. Track-only: these rows never gate ingest.
+model credit_grants {
+  id             String    @id @default(uuid()) @db.Uuid
+  subscriptionId String    @db.Uuid
+  organizationId String    @db.Uuid
+  /// Units granted, denominated in USAGE UNITS (the event's billable
+  /// quantity — the same number the invoice bills). NEVER dollars and never
+  /// usageCost.
+  amountUnits    Decimal   @db.Decimal(18, 6)
+  /// Units drawn from this grant so far, maintained in the same transaction
+  /// as the ledger append. MAY exceed amountUnits on the grant covering the
+  /// current period — that overdraw IS the truthful negative balance track
+  /// mode shows as overage-in-progress.
+  consumedUnits  Decimal   @default(0) @db.Decimal(18, 6)
+  /// 'period_grant' | 'manual_topup' | 'adjustment'.
+  /// Plain String, not a Postgres enum — a small closed set doesn't justify
+  /// a new enum type (house style, same as cap_policy_events.action).
+  source         String    @db.VarChar(30)
+  /// The subscription billing period this grant was minted for. Set on
+  /// period_grant rows, so a second mint can't stack another full pool onto
+  /// the same period. NULL on top-ups and
+  /// adjustments; Postgres treats NULLs as distinct, so those never collide
+  /// with the unique key below.
+  periodStart    DateTime? @db.Timestamptz(6)
+  effectiveAt    DateTime  @db.Timestamptz(6)
+  /// Period grants expire at the period's currentBillingPeriodEnd. NULL =
+  /// never expires (top-ups/adjustments unless the writer says otherwise).
+  expiresAt      DateTime? @db.Timestamptz(6)
+  /// Caller-supplied retry-safety key for manual top-ups/adjustments. NULL =
+  /// no key; NULLs are distinct.
+  idempotencyKey String?   @unique @db.VarChar(255)
+  /// The audit half of an auditable grant: the operator note on manual
+  /// writes. "Why does customer
+  /// X have 3,214 credits?" is answered from the row itself.
+  note           String?
+  /// Who/what minted it: 'dispatch:usage-invoice' | 'activation' |
+  /// 'lazy-mint' | a user id on manual writes.
+  createdBy      String?   @db.VarChar(255)
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  subscriptions         subscriptions           @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  organizations         organizations           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  credit_ledger_entries credit_ledger_entries[]
+
+  /// THE mint-idempotency key: one period grant per (subscription, period),
+  /// whichever code path advanced the period (dispatch, activation, lazy).
+  @@unique([subscriptionId, periodStart])
+  @@index([subscriptionId, expiresAt])
+  @@index([organizationId])
+  @@map("credit_grants")
+}
+
+/// The append-only movement log. One row per pool movement;
+/// rows are written, never updated or deleted by the app. balanceAfterUnits
+/// makes audit reads O(1) instead of a replay.
+model credit_ledger_entries {
+  id                String   @id @default(uuid()) @db.Uuid
+  grantId           String   @db.Uuid
+  subscriptionId    String   @db.Uuid
+  /// 'grant' | 'consume' | 'expire' | 'adjust'. Plain String (house style).
+  kind              String   @db.VarChar(20)
+  /// Signed movement in usage units. Negative = consumption/expiry.
+  deltaUnits        Decimal  @db.Decimal(18, 6)
+  /// Pool balance after this entry (negative = overage-in-progress).
+  balanceAfterUnits Decimal  @db.Decimal(18, 6)
+  /// Set on consume rows: the signal_events row that drew the units — every
+  /// decrement traces to an event. NULL on grant/expire/adjust rows.
+  signalEventId     String?  @db.Uuid
+  /// Audit only: the credits-per-unit rate this consume row's draw
+  /// used (the row's share of event units × rateApplied = -deltaUnits). NULL
+  /// means rate 1, every unrated draw. No read path
+  /// computes from it; it exists so "why did 30 units burn 120 credits?" is
+  /// answered from the row itself, including after the strategy's rates change.
+  rateApplied       Decimal? @db.Decimal(18, 6)
+  createdAt         DateTime @default(now()) @db.Timestamptz(6)
+
+  credit_grants credit_grants @relation(fields: [grantId], references: [id], onDelete: Cascade)
+  subscriptions subscriptions @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  /// An ingest retry can't double-decrement: one consume row per
+  /// (event, grant). NULL signalEventIds are distinct, so grant/expire
+  /// bookkeeping rows never collide.
+  @@unique([signalEventId, grantId])
+  @@index([subscriptionId, createdAt])
+  @@map("credit_ledger_entries")
+}
+
+/// The per-subscription cached balance. An OPTIMIZATION, never
+/// truth: created by upsert on first consume and at mint, NEVER assumed to
+/// exist. Recomputable from the ledger at any
+/// time; the ledger wins every disagreement.
+model credit_pool_balances {
+  subscriptionId String   @id @db.Uuid
+  /// Current pool balance in usage units. Negative = overage-in-progress
+  /// (track mode bills it as ordinary overage at period close; nothing gates).
+  balanceUnits   Decimal  @db.Decimal(18, 6)
+  /// The billing period this cache row describes. Cross-period draws (a
+  /// buffered flush billing into a prior period) skip the cache entirely —
+  /// consumeUnits only touches it for events inside the current period. The
+  /// decrement's WHERE guard on this column exists to catch a STALE row a
+  /// missed mint left behind: a guard miss falls back to recompute-and-SET
+  /// (heal), never a blind decrement.
+  periodStart    DateTime @db.Timestamptz(6)
+  updatedAt      DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  subscriptions subscriptions @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@map("credit_pool_balances")
+}
+
+/// The persistent dedup ledger for staged pool
+/// alerts, sibling of cap_alert_events. One row per (subscription, stage,
+/// billing period): the unique key makes a stage's alert fire exactly ONCE
+/// per period, idempotent across cron re-runs and the ingest trigger.
+/// periodStart is part of the key so a fresh billing period re-arms every
+/// stage; boundary evaluations of a just-ended period record under the OLD
+/// periodStart. Append-only: rows are written, never updated or deleted by
+/// the app.
+model pool_alert_events {
+  id             String   @id @default(uuid()) @db.Uuid
+  subscriptionId String   @db.Uuid
+  organizationId String   @db.Uuid
+  /// 'pool_50' | 'pool_80' | 'pool_95' | 'pool_exhausted'. Plain String, not
+  /// a Postgres enum (house style, same as credit_grants.source).
+  stage          String   @db.VarChar(20)
+  /// The subscription billing period this alert belongs to (currentBillingPeriodStart,
+  /// or the ended period's start on a boundary evaluation).
+  periodStart    DateTime @db.Timestamptz(6)
+  sentAt         DateTime @default(now()) @db.Timestamptz(6)
+  /// Who the alert went to (join-then-truncate guarded to fit 255).
+  recipient      String   @db.VarChar(255)
+
+  subscriptions subscriptions @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  organizations organizations @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, stage, periodStart])
+  @@index([organizationId])
+  @@map("pool_alert_events")
+}
+
+/// A per-customer cost/revenue watch ("email me when Acme's cost
+/// passes $500 this month"). Same engine shape as the cap and pool alerts, pointed
+/// at REAL customers (customers.isInternal = false), never internal coding-agent spend.
+/// Windows mirror the dashboard period selector: 'month' (current UTC calendar
+/// month), 'rolling' (last 30 days), 'custom' (fixed range; expires at range
+/// end). Value is read through the canonical getCostMetrics/getRevenueMetrics
+/// with a customerId filter — this table stores the tripwire, never money math.
+model customer_alerts {
+  id              String    @id @default(uuid()) @db.Uuid
+  orgId           String    @db.Uuid
+  customerId      String    @db.Uuid
+  /// 'cost' | 'revenue'. Plain String + DTO validation, not a Postgres enum
+  /// (house style, same as cap_policies.mode), so adding a metric such as
+  /// margin is a value add, not a migration.
+  metric          String    @db.VarChar(20)
+  /// Threshold in dollars (canon U1). 6 decimals for parity with
+  /// signal_events.usageCost so the compare needs no scale hop.
+  thresholdUsd    Decimal   @db.Decimal(18, 6)
+  /// 'month' | 'rolling' | 'custom' — the dashboard period selector's own vocabulary.
+  windowMode      String    @db.VarChar(20)
+  /// Custom mode only: the fixed evaluation range. Null in the other modes.
+  customStartDate DateTime? @db.Timestamptz(6)
+  customEndDate   DateTime? @db.Timestamptz(6)
+  /// Attribution-only: who created the watch. Nullable because API-key/MCP
+  /// creates carry no session user (mirrors cap_policies.createdByUserId).
+  createdByUserId String?   @db.Uuid
+  /// The deliverable address, resolved ONCE at create time (session creator's
+  /// email, or the money-role member an MCP caller named via notify_email) and
+  /// stored so a fire never depends on a live user lookup — survives creator
+  /// deletion. Re-resolved from users.email on session PATCH; otherwise the
+  /// stored address can go stale.
+  recipientEmail  String    @db.VarChar(255)
+  /// The org member the stored email belonged to at create time — who the
+  /// in-app notification rows (customer_alert_notifications.userId) belong to.
+  recipientUserId String    @db.Uuid
+  /// Rolling-mode latch: set when a crossing fires, cleared when the value
+  /// reads back under threshold (silent re-arm). One email per crossing
+  /// episode, not one per day over. Null in month/custom modes.
+  triggeredAt     DateTime? @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  organizations                organizations                  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  customers                    customers                      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customer_alert_events        customer_alert_events[]
+  customer_alert_notifications customer_alert_notifications[]
+
+  /// The DB backstop under the service's duplicate findFirst guards
+  /// (create + update) — mirrors their functional tuple exactly. The migration
+  /// SQL adds NULLS NOT DISTINCT (PG15+; Prisma can't express it here) so two
+  /// month/rolling watches with NULL custom dates still collide.
+  @@unique([orgId, customerId, metric, windowMode, thresholdUsd, recipientUserId, customStartDate, customEndDate], map: "uq_customer_alerts_functional_tuple")
+  @@index([orgId])
+  @@index([customerId])
+  @@map("customer_alerts")
+}
+
+/// The persistent dedup ledger for customer watches (same shape as
+/// cap_alert_events). One row per (alert, window): the unique key makes a
+/// watch fire exactly once per window, idempotent across cron re-runs.
+/// windowStart per mode: month = the UTC month start; custom = customStartDate
+/// (one fire ever); rolling = UTC day-start of the fire moment (the race belt
+/// under the triggeredAt latch). Rows cascade with their alert.
+model customer_alert_events {
+  id          String   @id @default(uuid()) @db.Uuid
+  alertId     String   @db.Uuid
+  windowStart DateTime @db.Timestamptz(6)
+  /// The metric value (dollars) at fire time, for copy and audit.
+  valueUsd    Decimal  @db.Decimal(18, 6)
+  /// The address the alert went to (the watch's stored recipientEmail at send time).
+  recipient   String   @db.VarChar(255)
+  sentAt      DateTime @default(now()) @db.Timestamptz(6)
+
+  customer_alerts customer_alerts @relation(fields: [alertId], references: [id], onDelete: Cascade)
+
+  @@unique([alertId, windowStart])
+  @@map("customer_alert_events")
+}
+
+/// The in-app notification feed: one row per
+/// fire per recipient, feeding the MFiQ "Customer alerts" card and the red
+/// sidebar badge. readAt is the per-user read state (null = unread; the badge
+/// count query is WHERE userId = ? AND readAt IS NULL, hence the composite
+/// index). Alert facts (metric/threshold/value/windowMode) are denormalized so
+/// the feed renders without joining a row the user may since have edited.
+/// Rows cascade with their alert — deleting a watch clears its feed.
+model customer_alert_notifications {
+  id           String    @id @default(uuid()) @db.Uuid
+  orgId        String    @db.Uuid
+  /// The recipient (the watch's recipientUserId at fire time). Reads are always
+  /// scoped userId = session user AND orgId = active org, so a person in two
+  /// orgs never sees org A's customers while working in org B.
+  userId       String    @db.Uuid
+  alertId      String    @db.Uuid
+  customerId   String    @db.Uuid
+  metric       String    @db.VarChar(20)
+  thresholdUsd Decimal   @db.Decimal(18, 6)
+  valueUsd     Decimal   @db.Decimal(18, 6)
+  windowMode   String    @db.VarChar(20)
+  firedAt      DateTime  @default(now()) @db.Timestamptz(6)
+  readAt       DateTime? @db.Timestamptz(6)
+
+  customer_alerts customer_alerts @relation(fields: [alertId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([orgId])
+  @@map("customer_alert_notifications")
+}
+
+/// A legal matter/case an org bills
+/// AI usage against. matterNumber is the firm's own case identifier — unique per
+/// org, matched EXACTLY (trimmed) against metadata.matterId at ingest. Bar rules
+/// (ABA Op. 512, FL 24-1, OR 2025-205) require ACTUAL per-matter AI cost before
+/// a firm may bill AI work; signal_events.matterId is what makes that record exist.
+model matters {
+  id                String              @id @default(uuid()) @db.Uuid
+  orgId             String              @db.Uuid
+  matterNumber      String              @db.VarChar(255)
+  name              String              @db.VarChar(255)
+  clientName        String              @db.VarChar(255)
+  status            enum_matters_status @default(open)
+  /// Responsible timekeeper. Plain uuid, no FK across the auth tables, so it
+  /// tolerates a departed user. No UI sets it; server actions pass it through
+  /// unchanged.
+  responsibleUserId String?             @db.Uuid
+  createdAt         DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt         DateTime            @default(now()) @updatedAt @db.Timestamptz(6)
+
+  organizations        organizations          @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  signal_events        signal_events[]
+  matter_routing_rules matter_routing_rules[]
+  initiatives          initiatives[]
+
+  @@unique([orgId, matterNumber])
+  @@index([orgId, status])
+}
+
+/// Org-defined routing rules that sweep UNTAGGED usage events onto a
+/// matter — same shape as signal_classification_rules (priority asc, first match
+/// wins) with matter-shaped matchers. A rule matches when EVERY set matcher
+/// matches (agentCode exact, customerExternalId exact, signalPattern
+/// case-insensitive substring); at least one matcher is required, enforced in
+/// the server action. A direct metadata.matterId tag always beats a rule.
+model matter_routing_rules {
+  id                 String   @id @default(uuid()) @db.Uuid
+  orgId              String   @db.Uuid
+  matterId           String   @db.Uuid
+  priority           Int      @default(100)
+  agentCode          String?  @db.VarChar(255)
+  customerExternalId String?  @db.VarChar(255)
+  signalPattern      String?  @db.VarChar(255)
+  createdAt          DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+
+  organizations organizations @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  matters       matters       @relation(fields: [matterId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, priority])
+}
+
+enum enum_matters_status {
+  open
+  closed
+}
+
+enum enum_signal_events_matterSource {
+  tag
+  rule
+  manual
+}

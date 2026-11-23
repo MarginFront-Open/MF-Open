@@ -1,0 +1,31 @@
+{
+  "$schema": "../schema.json",
+  "_description": "Preview deployment configuration, used for pull request previews",
+  "_extends": "base",
+  "_dynamicUrl": true,
+
+  "api": {
+    "baseUrl": "",
+    "timeout": 30000,
+    "retryAttempts": 2
+  },
+
+  "features": {
+    "useMockInvoices": false,
+    "enableAnalytics": true,
+    "enableSentry": true,
+    "enableBetterStack": true,
+    "debugMode": false
+  },
+
+  "auth": {
+    "_note": "betterAuthUrl is set dynamically from VERCEL_URL in preview",
+    "trustedOrigins": []
+  },
+
+  "logging": {
+    "level": "info",
+    "enableConsole": false,
+    "enableRemote": true
+  }
+}

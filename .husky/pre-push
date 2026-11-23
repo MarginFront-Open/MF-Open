@@ -1,0 +1,55 @@
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+run_check() {
+    label="$1"
+    shift
+
+    # Collect all args; last arg starting with "Run:" is the fix hint
+    fix_hint=""
+    args=""
+    for arg in "$@"; do
+        case "$arg" in
+            Run:*) fix_hint="$arg" ;;
+            *) args="$args \"$arg\"" ;;
+        esac
+    done
+
+    printf "${YELLOW}⏳ %s...${NC}" "$label"
+
+    tmpfile=$(mktemp)
+    if eval $args > "$tmpfile" 2>&1; then
+        printf "\r${GREEN}✓  %s${NC}\n" "$label"
+        rm -f "$tmpfile"
+        return 0
+    else
+        printf "\r${RED}✗  %s${NC}\n" "$label"
+        echo ""
+        echo "${BOLD}Last 20 lines of output:${NC}"
+        tail -20 "$tmpfile"
+        rm -f "$tmpfile"
+        if [ -n "$fix_hint" ]; then
+            echo ""
+            echo "${YELLOW}${BOLD}To fix: ${fix_hint#Run: }${NC}"
+        fi
+        echo ""
+        echo "${RED}Push aborted.${NC}"
+        exit 1
+    fi
+}
+
+echo ""
+echo "${BOLD}Running pre-push checks...${NC}"
+echo ""
+
+run_check "Lint"           npm run lint \
+    "Run: npm run lint:fix"
+run_check "Format check"   npm run format:check \
+    "Run: npm run format"
+run_check "Typecheck"      npm run typecheck
+
+echo ""
+echo "${GREEN}${BOLD}All checks passed.${NC}"

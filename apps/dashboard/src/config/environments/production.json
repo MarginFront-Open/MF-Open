@@ -1,0 +1,36 @@
+{
+  "$schema": "../schema.json",
+  "_description": "Production environment configuration",
+  "_extends": "base",
+
+  "api": {
+    "baseUrl": "",
+    "timeout": 30000,
+    "retryAttempts": 3,
+    "retryDelay": 2000
+  },
+
+  "features": {
+    "useMockInvoices": false,
+    "enableAnalytics": true,
+    "enableSentry": true,
+    "enableBetterStack": true,
+    "debugMode": false
+  },
+
+  "auth": {
+    "betterAuthUrl": "",
+    "trustedOrigins": []
+  },
+
+  "logging": {
+    "level": "warn",
+    "enableConsole": false,
+    "enableRemote": true
+  },
+
+  "security": {
+    "enforceHttps": true,
+    "contentSecurityPolicy": true
+  }
+}

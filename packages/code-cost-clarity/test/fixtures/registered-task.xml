@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <Author>runnervmk2qs2\runneradmin</Author>
+    <Description>MarginFront Code Cost Clarity - keeps your coding-agent spend metered in the background.</Description>
+    <URI>\ai.marginfront.ccc.itest.acbdfb97-ee77-41db-a16a-5809c72d45c8</URI>
+  </RegistrationInfo>
+  <Principals>
+    <Principal id="Author">
+      <UserId>S-1-5-21-286213758-782762298-1154913829-500</UserId>
+      <LogonType>InteractiveToken</LogonType>
+    </Principal>
+  </Principals>
+  <Settings>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <ExecutionTimeLimit>PT0S</ExecutionTimeLimit>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <RestartOnFailure>
+      <Count>3</Count>
+      <Interval>PT1M</Interval>
+    </RestartOnFailure>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <IdleSettings>
+      <StopOnIdleEnd>false</StopOnIdleEnd>
+      <RestartOnIdle>false</RestartOnIdle>
+    </IdleSettings>
+  </Settings>
+  <Triggers>
+    <LogonTrigger>
+      <UserId>runnervmk2qs2\runneradmin</UserId>
+    </LogonTrigger>
+  </Triggers>
+  <Actions Context="Author">
+    <Exec>
+      <Command>C:\hostedtoolcache\windows\node\24.19.0\x64\node.exe</Command>
+      <Arguments>"C:\Users\RUNNER~1\AppData\Local\Temp\ccc-live-task-hdFzzd\cli.js" run</Arguments>
+      <WorkingDirectory>D:\a\_temp\ccc-home-772b2b82-51cb-47af-9634-e405ff247c36\.marginfront-ccc</WorkingDirectory>
+    </Exec>
+  </Actions>
+</Task>

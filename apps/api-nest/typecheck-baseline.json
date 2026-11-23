@@ -1,0 +1,52 @@
+{
+  "readme": [
+    "Known type errors in api-nest that the type-check gate tolerates.",
+    "Every entry is a real defect, not a false positive. Keys are \"<file> TS<code>\",",
+    "values are the error messages that file is currently allowed to emit, with",
+    "inline object types collapsed to \"{ ... }\" because tsc does not print their",
+    "property order deterministically. Messages, not counts: a count-keyed baseline",
+    "lets you fix one error and add a different one of the same code in the same",
+    "file with the gate never moving.",
+    "This list may only shrink. Adding to it means shipping a new type error.",
+    "",
+    "specFileFloor is the minimum number of *.spec.ts files tsconfig.spec.json must",
+    "still resolve. It stops a later narrowing of that config from quietly dropping",
+    "specs out of coverage while the error tally - and so the gate - stays green."
+  ],
+  "specFileFloor": 152,
+  "errors": {
+    "src/modules/public/public.service.ts TS2322": [
+      "Type '{ id: string; name: string; description: string; plans: { id: string; name: string; description: string; isDefault: false; features: string[]; strategies: { ... }[]; }[]; }[]' is not assignable to type 'PublicAgent[]'."
+    ],
+    "src/modules/public/public.service.ts TS2339": [
+      "Property 'basePrice' does not exist on type '{ ... }'.",
+      "Property 'basePrice' does not exist on type '{ ... }'.",
+      "Property 'billingInterval' does not exist on type '{ ... }'.",
+      "Property 'currency' does not exist on type '{ ... }'.",
+      "Property 'includedUnits' does not exist on type '{ ... }'.",
+      "Property 'pricePerUnit' does not exist on type '{ ... }'.",
+      "Property 'pricePerUnit' does not exist on type '{ ... }'.",
+      "Property 'pricingType' does not exist on type '{ ... }'."
+    ],
+    "src/modules/subscription/subscription-billing.service.ts TS2339": [
+      "Property 'invoices_subscriptions_currentSubscriptionDraftInvoiceIdToinvoices' does not exist on type '{ ... }'.",
+      "Property 'invoices_subscriptions_currentSubscriptionDraftInvoiceIdToinvoices' does not exist on type '{ ... }'.",
+      "Property 'invoices_subscriptions_currentUsageDraftInvoiceIdToinvoices' does not exist on type '{ ... }'.",
+      "Property 'invoices_subscriptions_currentUsageDraftInvoiceIdToinvoices' does not exist on type '{ ... }'.",
+      "Property 'invoices_subscriptions_currentUsageDraftInvoiceIdToinvoices' does not exist on type '{ ... }'.",
+      "Property 'invoices_subscriptions_currentUsageDraftInvoiceIdToinvoices' does not exist on type '{ ... }'."
+    ],
+    "src/modules/subscription/subscription-billing.service.ts TS2353": [
+      "Object literal may only specify known properties, and 'createdBy' does not exist in type '(Without<invoicesCreateInput, invoicesUncheckedCreateInput> & invoicesUncheckedCreateInput) | (Without<...> & invoicesCreateInput)'.",
+      "Object literal may only specify known properties, and 'createdBy' does not exist in type '(Without<invoicesCreateInput, invoicesUncheckedCreateInput> & invoicesUncheckedCreateInput) | (Without<...> & invoicesCreateInput)'.",
+      "Object literal may only specify known properties, and 'invoices_subscriptions_currentSubscriptionDraftInvoiceIdToinvoices' does not exist in type 'subscriptionsInclude<DefaultArgs>'.",
+      "Object literal may only specify known properties, and 'invoices_subscriptions_currentUsageDraftInvoiceIdToinvoices' does not exist in type 'subscriptionsInclude<DefaultArgs>'.",
+      "Object literal may only specify known properties, and 'isNewSubscription' does not exist in type 'CalculateInvoiceDto'.",
+      "Object literal may only specify known properties, and 'readyForFinalization' does not exist in type '{ ... }'.",
+      "Object literal may only specify known properties, and 's3Key' does not exist in type '(Without<invoicesUpdateInput, invoicesUncheckedUpdateInput> & invoicesUncheckedUpdateInput) | (Without<...> & invoicesUpdateInput)'."
+    ],
+    "src/modules/subscription/subscription.service.ts TS2322": [
+      "Type '{ ... }' is not assignable to type '(Without<subscriptionsUpdateInput, subscriptionsUncheckedUpdateInput> & subscriptionsUncheckedUpdateInput) | (Without<...> & subscriptionsUpdateInput)'."
+    ]
+  }
+}

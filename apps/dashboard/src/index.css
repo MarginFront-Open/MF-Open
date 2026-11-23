@@ -1,0 +1,1137 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ============================================
+       BRAND COLOR SYSTEM
+       ============================================ */
+
+    /* Primary: Deep Teal (#003024) - Trust, depth, sophistication */
+    /* Used for: logos, headers, call-to-actions, primary buttons */
+    --primary: 165 100% 9.4%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary: Lime Green (#A4EA49) - Growth, innovation, vitality */
+    /* Used for: accents, buttons, graphical details, highlights */
+    --secondary: 85 78% 60%;
+    --secondary-foreground: 165 100% 9.4%;
+
+    /* Secondary Dark: Darker green (#4d7c0f) for text on light backgrounds */
+    /* This ensures readability while maintaining brand identity */
+    --secondary-dark: 85 70% 27%;
+
+    /* Background: Soft White - Clean, modern, spacious */
+    /* Used for: main backgrounds, maintaining clean modern aesthetic */
+    --background: 0 0% 98.5%;
+    --foreground: 165 100% 9.4%;
+
+    /* Card & Surface Colors */
+    --card: 0 0% 100%;
+    --card-foreground: 165 100% 9.4%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 165 100% 9.4%;
+
+    /* Muted & Subtle Colors */
+    --muted: 210 12% 94%;
+    --muted-foreground: 165 25% 40%;
+
+    /* Accent Colors - Harmonious with brand palette */
+    --accent: 210 15% 90%;
+    --accent-foreground: 165 100% 9.4%;
+
+    /* Destructive - Maintains visibility while respecting brand */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Border & Input Colors */
+    --border: 210 20% 88%;
+    --input: 210 20% 88%;
+    --ring: 165 100% 9.4%;
+
+    /* Brand Chart Colors - Vibrant and harmonious */
+    --chart-1: 165 100% 9.4%; /* Deep Teal - Primary */
+    --chart-2: 85 78% 60%; /* Lime Green - Secondary */
+    --chart-3: 85 65% 55%; /* Medium Green - Tertiary */
+    --chart-4: 165 60% 35%; /* Rich Teal - Quaternary */
+    --chart-5: 85 50% 48%; /* Forest Green - Quinary */
+
+    /* Border Radius */
+    --radius: 0.5rem;
+
+    /* Sidebar Colors - Refined and cohesive */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 165 100% 9.4%;
+    --sidebar-primary: 165 100% 9.4%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 85 35% 92%;
+    --sidebar-accent-foreground: 165 100% 9.4%;
+    --sidebar-border: 85 25% 88%;
+    --sidebar-ring: 85 30% 75%;
+    --sidebar-label: 165 20% 45%;
+
+    /* ============================================
+       THEME COLOR SYSTEM - Extended Palette
+       ============================================ */
+
+    /* Theme Color System - Primary (Deep Teal) */
+    --theme-primary-50: 165 100% 95%;
+    --theme-primary-100: 165 100% 85%;
+    --theme-primary-200: 165 100% 70%;
+    --theme-primary-300: 165 100% 50%;
+    --theme-primary-400: 165 100% 30%;
+    --theme-primary-500: 165 100% 9%;
+    --theme-primary-600: 165 100% 7%;
+    --theme-primary-700: 165 100% 5%;
+    --theme-primary-foreground: 0 0% 100%;
+
+    /* Theme Color System - Accent (Lime Green) */
+    --theme-accent-50: 86 80% 95%;
+    --theme-accent-100: 86 80% 85%;
+    --theme-accent-200: 86 80% 75%;
+    --theme-accent-300: 86 80% 65%;
+    --theme-accent-400: 86 80% 60%;
+    --theme-accent-500: 86 80% 50%;
+    --theme-accent-600: 86 80% 40%;
+    --theme-accent-700: 86 80% 30%;
+    --theme-accent-foreground: 165 100% 9%;
+
+    /* Theme Color System - Neutral (Pale Mint) */
+    --theme-neutral-50: 78 38% 97%;
+    --theme-neutral-100: 78 38% 92%;
+    --theme-neutral-200: 78 38% 87%;
+    --theme-neutral-300: 78 38% 75%;
+    --theme-neutral-400: 78 38% 60%;
+    --theme-neutral-500: 78 38% 45%;
+    --theme-neutral-foreground: 165 100% 9%;
+
+    /* AI Feature Colors (uses accent) */
+    --ai-primary: var(--theme-accent-400);
+    --ai-glow: 86 80% 60%;
+    --ai-surface: var(--theme-accent-50);
+  }
+
+  .dark {
+    /* ============================================
+       BRAND DARK MODE SYSTEM
+       ============================================ */
+
+    /* Background & Foreground */
+    --background: 165 100% 3.5%;
+    --foreground: 0 0% 98%;
+
+    /* Card & Surface Colors */
+    --card: 165 100% 5.5%;
+    --card-foreground: 0 0% 98%;
+    --popover: 165 100% 5.5%;
+    --popover-foreground: 0 0% 98%;
+
+    /* Primary */
+    --primary: 165 75% 18%;
+    --primary-foreground: 85 75% 70%;
+
+    /* Secondary - brighter than light mode for contrast on dark */
+    --secondary: 85 75% 55%;
+    --secondary-foreground: 165 100% 3.5%;
+
+    /* Secondary Dark: In dark mode, the regular secondary is fine for text */
+    --secondary-dark: 85 75% 55%;
+
+    /* Muted & Subtle Colors */
+    --muted: 165 30% 12%;
+    --muted-foreground: 0 0% 75%;
+
+    /* Accent Colors */
+    --accent: 165 35% 16%;
+    --accent-foreground: 85 75% 70%;
+
+    /* Destructive */
+    --destructive: 0 72% 58%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Border & Input Colors */
+    --border: 165 25% 18%;
+    --input: 165 25% 18%;
+    --ring: 85 75% 55%;
+
+    /* Brand Chart Colors */
+    --chart-1: 85 75% 58%; /* Lime Green - Primary (brighter) */
+    --chart-2: 165 65% 25%; /* Deep Teal - Secondary (more visible) */
+    --chart-3: 85 70% 52%; /* Bright Green - Tertiary */
+    --chart-4: 165 55% 35%; /* Medium Teal - Quaternary */
+    --chart-5: 85 60% 48%; /* Vibrant Green - Quinary */
+
+    /* Sidebar Colors */
+    --sidebar-background: 165 100% 4.5%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 165 75% 18%;
+    --sidebar-primary-foreground: 85 75% 70%;
+    --sidebar-accent: 165 30% 13%;
+    --sidebar-accent-foreground: 85 75% 70%;
+    --sidebar-border: 165 25% 16%;
+    --sidebar-ring: 85 75% 55%;
+    --sidebar-label: 0 0% 65%;
+
+    /* ============================================
+       THEME COLOR SYSTEM - Extended Palette (Dark Mode)
+       ============================================ */
+
+    /* Theme Color System - Primary (Deep Teal) - Dark Mode */
+    --theme-primary-50: 165 100% 10%;
+    --theme-primary-100: 165 100% 15%;
+    --theme-primary-200: 165 100% 25%;
+    --theme-primary-300: 165 100% 35%;
+    --theme-primary-400: 165 100% 45%;
+    --theme-primary-500: 165 75% 55%;
+    --theme-primary-600: 165 75% 65%;
+    --theme-primary-700: 165 75% 75%;
+    --theme-primary-foreground: 0 0% 100%;
+
+    /* Theme Color System - Accent (Lime Green) - Dark Mode */
+    --theme-accent-50: 86 80% 15%;
+    --theme-accent-100: 86 80% 25%;
+    --theme-accent-200: 86 80% 35%;
+    --theme-accent-300: 86 80% 45%;
+    --theme-accent-400: 86 80% 55%;
+    --theme-accent-500: 86 80% 65%;
+    --theme-accent-600: 86 80% 75%;
+    --theme-accent-700: 86 80% 85%;
+    --theme-accent-foreground: 165 100% 5%;
+
+    /* Theme Color System - Neutral (Pale Mint) - Dark Mode */
+    --theme-neutral-50: 78 38% 15%;
+    --theme-neutral-100: 78 38% 20%;
+    --theme-neutral-200: 78 38% 30%;
+    --theme-neutral-300: 78 38% 40%;
+    --theme-neutral-400: 78 38% 55%;
+    --theme-neutral-500: 78 38% 70%;
+    --theme-neutral-foreground: 165 100% 95%;
+
+    /* AI Feature Colors (uses accent) - Dark Mode */
+    --ai-primary: var(--theme-accent-500);
+    --ai-glow: 86 80% 55%;
+    --ai-surface: var(--theme-accent-50);
+  }
+
+  /* ============================================
+     COLLAPSIBLE ANIMATIONS
+     ============================================ */
+  .CollapsibleContent {
+    overflow: hidden;
+  }
+  .CollapsibleContent[data-state='open'] {
+    animation: slideDown 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .CollapsibleContent[data-state='closed'] {
+    animation: slideUp 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  @keyframes slideDown {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-collapsible-content-height);
+    }
+  }
+
+  @keyframes slideUp {
+    from {
+      height: var(--radix-collapsible-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+
+  /* Sidebar branding - hide version badge when collapsed */
+  .group-data-[collapsible='icon']
+    [data-sidebar-branding]
+    .sidebar-version-badge {
+    opacity: 0;
+    width: 0;
+    overflow: hidden;
+  }
+
+  /* Smooth transitions for sidebar elements */
+  [data-sidebar] {
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Prevent focus zoom on mobile devices */
+  @media screen and (max-width: 767px) {
+    input,
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+
+  /* Remove default browser blue focus borders */
+  input:focus,
+  input:focus-visible {
+    outline: none !important;
+  }
+
+  /* Command palette input - ensure no blue border but allow theme border */
+  [cmdk-input] {
+    outline: none !important;
+  }
+
+  [cmdk-input]:focus,
+  [cmdk-input]:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@layer utilities {
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .faded-bottom {
+    @apply after:pointer-events-none after:absolute after:bottom-0 after:left-0 after:hidden after:h-32 after:w-full after:bg-[linear-gradient(180deg,_transparent_10%,_hsl(var(--background))_70%)] after:md:block;
+  }
+
+  /* ============================================
+     BRAND GRADIENTS
+     ============================================ */
+
+  .gradient-brand {
+    background: linear-gradient(
+      to right,
+      hsl(var(--primary)),
+      hsl(var(--secondary))
+    );
+  }
+
+  .gradient-brand-subtle {
+    background: linear-gradient(
+      to bottom right,
+      hsl(var(--background)),
+      hsl(var(--background)),
+      hsl(var(--primary) / 0.05)
+    );
+  }
+
+  .gradient-brand-accent {
+    background: linear-gradient(
+      to right,
+      hsl(var(--secondary) / 0.2),
+      hsl(var(--accent)),
+      hsl(var(--secondary) / 0.2)
+    );
+  }
+
+  .gradient-brand-card {
+    background: linear-gradient(
+      to bottom right,
+      hsl(var(--card)),
+      hsl(var(--card)),
+      hsl(var(--primary) / 0.03)
+    );
+  }
+
+  /* ============================================
+     BRAND SHADOWS
+     ============================================ */
+
+  .shadow-brand-primary {
+    box-shadow:
+      0 4px 6px -1px hsl(var(--primary) / 0.1),
+      0 2px 4px -1px hsl(var(--primary) / 0.06);
+  }
+
+  .shadow-brand-secondary {
+    box-shadow:
+      0 4px 6px -1px hsl(var(--secondary) / 0.15),
+      0 2px 4px -1px hsl(var(--secondary) / 0.1);
+  }
+
+  .shadow-brand-lg {
+    box-shadow:
+      0 10px 15px -3px hsl(var(--primary) / 0.1),
+      0 4px 6px -2px hsl(var(--primary) / 0.05);
+  }
+
+  .shadow-brand-xl {
+    box-shadow:
+      0 20px 25px -5px hsl(var(--primary) / 0.1),
+      0 10px 10px -5px hsl(var(--primary) / 0.04);
+  }
+
+  /* ============================================
+     TRANSITIONS & ANIMATIONS
+     ============================================ */
+
+  .transition-micro {
+    transition-duration: 100ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: auto;
+  }
+
+  .transition-standard {
+    transition-duration: 150ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: auto;
+  }
+
+  .hover-lift {
+    @apply transition-all duration-200;
+  }
+
+  .hover-lift:hover {
+    @apply -translate-y-0.5 shadow-md;
+  }
+
+  .hover-lift-brand {
+    @apply transition-all duration-200;
+  }
+
+  .hover-lift-brand:hover {
+    @apply -translate-y-1 shadow-lg shadow-primary/20;
+  }
+
+  .hover-scale {
+    @apply transition-transform duration-150 ease-out;
+    will-change: transform;
+    backface-visibility: hidden;
+  }
+
+  .hover-scale:hover {
+    transform: scale3d(1.01, 1.01, 1);
+  }
+
+  .hover-scale-shadow {
+    @apply transition-all duration-150 ease-out;
+    will-change: transform;
+    backface-visibility: hidden;
+  }
+
+  .hover-scale-shadow:hover {
+    transform: scale3d(1.01, 1.01, 1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+
+  .active-scale:active {
+    transform: scale3d(0.99, 0.99, 1);
+    transition: transform 0.08s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .animate-entrance {
+    animation: fadeInUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: opacity, transform;
+    backface-visibility: hidden;
+  }
+
+  .stagger-1 {
+    animation-delay: 0.03s;
+  }
+  .stagger-2 {
+    animation-delay: 0.06s;
+  }
+  .stagger-3 {
+    animation-delay: 0.09s;
+  }
+  .stagger-4 {
+    animation-delay: 0.12s;
+  }
+  .stagger-5 {
+    animation-delay: 0.15s;
+  }
+
+  /* Shake animation for errors */
+  @keyframes shake {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    25% {
+      transform: translateX(-4px);
+    }
+    75% {
+      transform: translateX(4px);
+    }
+  }
+
+  .animate-shake {
+    animation: shake 150ms ease-in-out;
+  }
+
+  @keyframes progress {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  .animate-progress {
+    animation: progress 1s ease-in-out infinite;
+  }
+
+  @keyframes scanLine {
+    0% {
+      top: 0;
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.5;
+    }
+    100% {
+      top: 100%;
+      opacity: 1;
+    }
+  }
+
+  .animate-scan-line {
+    animation: scanLine 2s ease-in-out infinite;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: opacity;
+    backface-visibility: hidden;
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translate3d(0, 8px, 0);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  .animate-fade-in-up {
+    animation: fadeInUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: opacity, transform;
+    backface-visibility: hidden;
+  }
+
+  @keyframes fadeInDown {
+    from {
+      opacity: 0;
+      transform: translate3d(0, -8px, 0);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  .animate-fade-in-down {
+    animation: fadeInDown 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: opacity, transform;
+    backface-visibility: hidden;
+  }
+
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale3d(0.98, 0.98, 1);
+    }
+    to {
+      opacity: 1;
+      transform: scale3d(1, 1, 1);
+    }
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: opacity, transform;
+    backface-visibility: hidden;
+  }
+
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translate3d(12px, 0, 0);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  .animate-slide-in-right {
+    animation: slideInRight 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: opacity, transform;
+    backface-visibility: hidden;
+  }
+
+  @keyframes slideInLeft {
+    from {
+      opacity: 0;
+      transform: translate3d(-12px, 0, 0);
+    }
+    to {
+      opacity: 1;
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  .animate-slide-in-left {
+    animation: slideInLeft 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: opacity, transform;
+    backface-visibility: hidden;
+  }
+
+  /* ============================================
+     FOCUS & INTERACTION STATES
+     ============================================ */
+
+  .focus-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background;
+  }
+
+  .table-row-interactive {
+    @apply transition-micro cursor-pointer;
+  }
+
+  .table-row-interactive:hover {
+    @apply bg-muted/50;
+  }
+
+  /* ============================================
+     BORDER SYSTEM
+     ============================================ */
+
+  .border-subtle {
+    border: 1px solid hsl(var(--border) / 0.5);
+  }
+
+  .border-interactive {
+    border: 1px solid hsl(var(--border));
+  }
+
+  .border-interactive:hover {
+    border-color: hsl(var(--border) / 0.8);
+  }
+
+  .border-focus {
+    border: 2px solid hsl(var(--primary));
+  }
+
+  .border-brand-primary {
+    border-color: hsl(var(--primary));
+  }
+
+  .border-brand-secondary {
+    border-color: hsl(var(--secondary));
+  }
+
+  /* ============================================
+     BRAND TEXT COLORS
+     ============================================ */
+
+  .text-brand-primary {
+    color: hsl(var(--primary));
+  }
+
+  .text-brand-secondary {
+    color: hsl(var(--secondary));
+  }
+
+  /* ============================================
+     BRAND BACKGROUND COLORS
+     ============================================ */
+
+  .bg-brand-primary {
+    background-color: hsl(var(--primary));
+  }
+
+  .bg-brand-secondary {
+    background-color: hsl(var(--secondary));
+  }
+
+  .bg-brand-primary\/10 {
+    background-color: hsl(var(--primary) / 0.1);
+  }
+
+  .bg-brand-secondary\/10 {
+    background-color: hsl(var(--secondary) / 0.1);
+  }
+
+  /* ============================================
+     INTERACTIVE STATES
+     ============================================ */
+
+  .hover-brand-primary {
+    @apply transition-colors duration-200;
+  }
+
+  .hover-brand-primary:hover {
+    @apply bg-primary text-primary-foreground;
+  }
+
+  .hover-brand-secondary {
+    @apply transition-colors duration-200;
+  }
+
+  .hover-brand-secondary:hover {
+    @apply bg-secondary text-secondary-foreground;
+  }
+
+  .focus-brand-ring {
+    @apply focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background;
+  }
+
+  .focus-brand-ring-secondary {
+    @apply focus:outline-none focus:ring-2 focus:ring-secondary focus:ring-offset-2 focus:ring-offset-background;
+  }
+
+  /* ============================================
+     TABULAR NUMERALS (for data tables)
+     ============================================ */
+  .font-tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum', 'zero';
+  }
+
+  /* ============================================
+     GUIDED TOUR TARGETS
+     ============================================ */
+  /* A control a tour step points at is scrolled to the top of the viewport,
+     and a sticky header would sit on top of it there, which is the named
+     failure of WCAG 2.4.11. The allowance rides the browser's own scroll,
+     so there is never a second correcting scroll to compose with it. */
+  [data-tour] {
+    scroll-margin-top: 72px;
+  }
+
+  /* ============================================
+     PRINT STYLES FOR INVOICES
+     ============================================ */
+}
+
+@media print {
+  /* Hide all navigation, sidebars, buttons, and interactive elements */
+  nav,
+  aside,
+  header:not(.print-header),
+  footer:not(.print-footer),
+  .no-print,
+  [data-sidebar],
+  [data-sidebar-rail],
+  button:not(.print-button),
+  .sticky,
+  .fixed {
+    display: none !important;
+  }
+
+  /* Reset page margins for clean printing */
+  @page {
+    margin: 0.75in;
+    size: letter;
+  }
+
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    color: black !important;
+    font-size: 12pt !important;
+    line-height: 1.4 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Make printable content full width */
+  .print-container,
+  .print-content {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Show print-only elements */
+  .print-only {
+    display: block !important;
+  }
+
+  /* Avoid page breaks inside elements */
+  tr,
+  .print-no-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Ensure tables print cleanly */
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  th,
+  td {
+    border: 1px solid #ddd !important;
+    padding: 8px !important;
+    text-align: left !important;
+  }
+
+  th {
+    background-color: #f5f5f5 !important;
+    font-weight: 600 !important;
+  }
+
+  /* Print header styling */
+  .print-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    margin-bottom: 24px !important;
+    padding-bottom: 16px !important;
+    border-bottom: 2px solid hsl(var(--primary)) !important;
+  }
+
+  /* Print footer styling */
+  .print-footer {
+    display: block !important;
+    margin-top: 32px !important;
+    padding-top: 16px !important;
+    border-top: 1px solid #ddd !important;
+    text-align: center !important;
+    font-size: 10pt !important;
+    color: #666 !important;
+  }
+
+  /* Links should show URL in print */
+  a[href]:after {
+    content: none !important;
+  }
+
+  /* Card styling for print */
+  .card,
+  [class*='Card'] {
+    box-shadow: none !important;
+    border: 1px solid #ddd !important;
+    margin-bottom: 16px !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Badge styling for print */
+  .badge,
+  [class*='Badge'] {
+    border: 1px solid currentColor !important;
+    padding: 2px 8px !important;
+  }
+
+  /* Ensure status badges print with color */
+  .bg-secondary\/10 {
+    background-color: hsl(var(--secondary) / 0.1) !important;
+  }
+
+  .bg-amber-100 {
+    background-color: #fef3c7 !important;
+  }
+
+  .bg-red-100,
+  .bg-destructive\/10 {
+    background-color: #fee2e2 !important;
+  }
+
+  .bg-gray-100,
+  .bg-muted {
+    background-color: #f3f4f6 !important;
+  }
+
+  /* Hide dialog backdrops */
+  [data-radix-portal],
+  [role='dialog'],
+  .dialog-overlay {
+    display: none !important;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  html {
+    @apply overflow-x-hidden;
+  }
+
+  /* ============================================
+     BRAND TYPOGRAPHY BASE STYLES
+     ============================================
+     Font roles:
+     - Europa Grotesk: H1-H3, Feature titles, Marketing sections
+     - Golos Text: Body text, H4-H6, UI labels, forms, buttons
+     ============================================ */
+
+  body {
+    @apply min-h-svh w-full bg-background text-foreground;
+    /* Golos Text for body */
+    font-family: theme('fontFamily.sans');
+    font-weight: 400;
+    line-height: 1.5;
+    letter-spacing: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* ============================================
+     HEADING STYLES - Europa Grotesk for H1-H3
+     ============================================ */
+
+  h1 {
+    font-family: theme('fontFamily.heading');
+    @apply text-h1;
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+  }
+
+  h2 {
+    font-family: theme('fontFamily.heading');
+    @apply text-h2;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+  }
+
+  h3 {
+    font-family: theme('fontFamily.heading');
+    @apply text-h3;
+    font-weight: 500;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+  }
+
+  /* ============================================
+     SUBHEADING STYLES - Golos Text for H4-H6
+     ============================================ */
+
+  h4 {
+    font-family: theme('fontFamily.sans');
+    @apply text-h4;
+    font-weight: 500;
+    line-height: 1.3;
+    letter-spacing: 0;
+  }
+
+  h5 {
+    font-family: theme('fontFamily.sans');
+    @apply text-h5;
+    font-weight: 500;
+    line-height: 1.3;
+    letter-spacing: 0;
+  }
+
+  h6 {
+    font-family: theme('fontFamily.sans');
+    @apply text-h6;
+    font-weight: 400;
+    line-height: 1.35;
+    letter-spacing: 0;
+  }
+
+  /* ============================================
+     BODY TEXT STYLES - Golos Text
+     ============================================ */
+
+  p {
+    font-family: theme('fontFamily.sans');
+    font-weight: 400;
+    line-height: 1.5;
+    letter-spacing: 0;
+  }
+
+  /* Strong and emphasis maintain brand consistency */
+  strong,
+  b {
+    font-weight: 600;
+  }
+
+  em,
+  i {
+    font-style: italic;
+    font-weight: 400;
+  }
+
+  /* Links - Golos Text Medium */
+  a {
+    font-weight: 500;
+    letter-spacing: 0;
+  }
+
+  /* Code and monospace */
+  code,
+  pre {
+    font-family: theme('fontFamily.mono');
+  }
+
+  /* ============================================
+     FORM ELEMENTS - Golos Text
+     ============================================ */
+
+  label {
+    font-family: theme('fontFamily.sans');
+    font-weight: 500;
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  input,
+  textarea,
+  select {
+    font-family: theme('fontFamily.sans');
+    font-weight: 400;
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+
+  button {
+    font-family: theme('fontFamily.sans');
+    font-weight: 500;
+    letter-spacing: 0.01em;
+  }
+
+  /* ============================================
+     SMALL TEXT & CAPTIONS - Golos Text Light
+     ============================================ */
+
+  small,
+  .text-sm {
+    font-family: theme('fontFamily.sans');
+    font-weight: 400;
+    line-height: 1.5;
+  }
+
+  .caption,
+  figcaption {
+    font-family: theme('fontFamily.sans');
+    font-weight: 300;
+    font-size: 0.75rem;
+    line-height: 1.4;
+  }
+}
+
+/* ============================================
+   MF SHELL TOKENS
+   ============================================
+   Brand tokens: primary green hsl(152 76% 36%), bright variant
+   hsl(152 76% 45%) on dark, accent orange hsl(27 96% 54%) used SPARINGLY
+   (badges/highlights), dark backgrounds on a green-tinted
+   near-black ramp hsl(150 15% 6|8|14%). Values are self-contained hex/rgba —
+   use var(--mf-x) directly, NEVER wrap in hsl() like the HSL-channel
+   tokens above. TS twin: src/features/dashboard-shell/mf-tokens.ts — the
+   token-parity test keeps the two from drifting. Class-scoped (:root/.light
+   + .dark, not html.) so a NESTED .dark/.light wrapper re-themes its
+   subtree — that's what powers the catalog-preview route's side-by-side. */
+@layer base {
+  :root,
+  .light {
+    --mf-bg: #fafafa; /* page canvas — hsl(0 0% 98%) */
+    --mf-sidebar: #f7f8f7; /* reserved for the sidebar */
+    --mf-card: #ffffff; /* tile/card surface */
+    --mf-card2: #f1f3f2; /* segmented-control / inset surface */
+    --mf-bd: rgba(17, 20, 24, 0.1); /* card border */
+    --mf-bd2: rgba(17, 20, 24, 0.065); /* table row divider */
+    --mf-tx: #171c1a; /* primary text / values — near-ink */
+    --mf-tx2: #616b66; /* secondary text / legends */
+    --mf-tx3: #9aa29e; /* labels / axis / muted */
+    --mf-accent: #16a260; /* brand green — hsl(152 76% 36%) */
+    --mf-accent2: #e7f9ee; /* accent surface — hsl(145 60% 94%) */
+    --mf-orange: #fa7e19; /* brand orange, SPARING — hsl(27 96% 54%) */
+    --mf-green: #2f9e68; /* positive */
+    --mf-amber: #b7791f; /* warning — gold, distinct from --mf-orange */
+    --mf-red: #d0503a; /* negative */
+    --mf-barbg: rgba(17, 20, 24, 0.06); /* chart track / mini-bar bg */
+    --mf-chart3: #088ca0; /* series 3 (teal) — CVD-validated, chart-colors.ts */
+    --mf-chart4: #b38705; /* series 4 (gold) */
+    --mf-chart5: #127d56; /* series 5 (forest) */
+    --mf-chart6: #ad491f; /* series 6 (copper) */
+
+    /* Theme-invariant radii */
+    --mf-radius-card: 11px; /* every tile/card */
+    --mf-radius-inner: 9px; /* add-widget preview cards */
+    --mf-radius-seg: 8px; /* segmented-toggle container */
+    --mf-radius-seg-item: 6px; /* segmented-toggle item, buttons */
+  }
+
+  .dark {
+    --mf-bg: #0d120f; /* hsl(150 15% 6%) — dark sidebar ramp */
+    --mf-sidebar: #0f1512; /* hsl(150 15% 7%) — ramp midpoint, reserved */
+    --mf-card: #111714; /* hsl(150 15% 8%) — ramp panel */
+    --mf-card2: #1e2924; /* hsl(150 15% 14%) — ramp raised */
+    --mf-bd: rgba(255, 255, 255, 0.08);
+    --mf-bd2: rgba(255, 255, 255, 0.055);
+    --mf-tx: #f1f4f2; /* hsl(150 10% 95%) */
+    --mf-tx2: #939f99;
+    --mf-tx3: #636e69;
+    --mf-accent: #1cca79; /* brand green bright — hsl(152 76% 45%) */
+    --mf-accent2: rgba(28, 202, 121, 0.16);
+    --mf-orange: #fa7e19;
+    --mf-green: #4cb782;
+    --mf-amber: #ddaf3c; /* gold, distinct from --mf-orange */
+    --mf-red: #e5735e;
+    --mf-barbg: rgba(255, 255, 255, 0.07);
+    --mf-chart3: #25a2b5;
+    --mf-chart4: #b1880b;
+    --mf-chart5: #35a175;
+    --mf-chart6: #c25f2f;
+  }
+
+  /* Shell opt-in: Inter var for body copy + Space Grotesk for headings
+     (loaded in app/layout.tsx as --font-mf / --font-mf-display, inert until
+     a subtree adds this class) + tabular numerals. The element selectors are
+     needed because the brand typography base styles above set font-family
+     directly on h1-h6/p/label/inputs — inheritance from the wrapper alone
+     would lose to them. */
+  .mf-shell,
+  .mf-shell p,
+  .mf-shell label,
+  .mf-shell input,
+  .mf-shell textarea,
+  .mf-shell select,
+  .mf-shell button {
+    font-family: var(--font-mf), system-ui, sans-serif;
+  }
+
+  .mf-shell h1,
+  .mf-shell h2,
+  .mf-shell h3,
+  .mf-shell h4,
+  .mf-shell h5,
+  .mf-shell h6 {
+    font-family: var(--font-mf-display), var(--font-mf), system-ui, sans-serif;
+  }
+
+  .mf-shell {
+    font-variant-numeric: tabular-nums;
+  }
+}

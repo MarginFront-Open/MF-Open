@@ -1,0 +1,5 @@
+node_modules/
+dist/
+
+# CLI testing defaults — does NOT affect SDK library usage
+.env.marginfront.cli

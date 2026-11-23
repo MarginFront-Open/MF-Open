@@ -1,0 +1,29 @@
+title = "MarginFront gitleaks config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "marginfront-secret-key"
+description = "MarginFront secret API key"
+regex = '''mf_sk_[A-Za-z0-9]{16,}'''
+keywords = ["mf_sk_"]
+
+[[allowlists]]
+  description = "Obvious placeholder words only. No path is exempt, so other test files and the example env files are scanned like everything else."
+  regexes = [
+    '''(?i)(your[-_].*[-_](key|secret|token)[-_]?here|changeme|placeholder|example[-_]?(key|secret)|dummy|xxxxx+)''',
+    '''(?i)mf_(sk|pk)_your_key_here''',
+  ]
+
+[[allowlists]]
+  description = "Fabricated values used as inputs in unit tests for the key-handling code, matched by value. No path is exempt."
+  targetRules = ["generic-api-key", "marginfront-secret-key"]
+  regexes = [
+    '''mf_sk_thisisrawandsecret''',
+    '''mf_sk_supersecretvalue1234567890''',
+    '''mf_sk_AAAABBBBCCCCDDDDEEEEFFFFGGGGHHHH''',
+    '''abcdef012345''',
+    '''turn-key-abc123''',
+    '''b729d50f743da58c0476057d4ab65f05a3923965f1a90f3ad851893732297e58''',
+  ]

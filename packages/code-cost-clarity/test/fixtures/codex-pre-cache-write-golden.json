@@ -1,0 +1,437 @@
+{
+  "codexSolColdBigWrite": {
+    "records": [
+      {
+        "customerExternalId": "dev@example.test",
+        "agentCode": "codex",
+        "signalName": "codex-turn",
+        "model": "gpt-5.6-sol",
+        "modelProvider": "openai",
+        "inputTokens": 13175,
+        "outputTokens": 89,
+        "environment": "development",
+        "metadata": {
+          "source": "codex",
+          "sessionId": "session-5",
+          "rawModel": "gpt-5.6-sol",
+          "cachedTokens": 0,
+          "reasoningTokens": 0,
+          "toolTokens": 13264,
+          "cacheFoldedIntoInput": false
+        },
+        "cacheReadTokens": 0
+      }
+    ]
+  },
+  "codexSolColdBigWrite::foldCache": {
+    "records": [
+      {
+        "customerExternalId": "dev@example.test",
+        "agentCode": "codex",
+        "signalName": "codex-turn",
+        "model": "gpt-5.6-sol",
+        "modelProvider": "openai",
+        "inputTokens": 13175,
+        "outputTokens": 89,
+        "environment": "development",
+        "metadata": {
+          "source": "codex",
+          "sessionId": "session-5",
+          "rawModel": "gpt-5.6-sol",
+          "cachedTokens": 0,
+          "reasoningTokens": 0,
+          "toolTokens": 13264,
+          "cacheFoldedIntoInput": true
+        }
+      }
+    ]
+  },
+  "codexSolWarmBothSlices": {
+    "records": [
+      {
+        "customerExternalId": "dev@example.test",
+        "agentCode": "codex",
+        "signalName": "codex-turn",
+        "model": "gpt-5.6-sol",
+        "modelProvider": "openai",
+        "inputTokens": 129,
+        "outputTokens": 34,
+        "environment": "development",
+        "metadata": {
+          "source": "codex",
+          "sessionId": "session-5",
+          "rawModel": "gpt-5.6-sol",
+          "cachedTokens": 13172,
+          "reasoningTokens": 13,
+          "toolTokens": 13335,
+          "cacheFoldedIntoInput": false
+        },
+        "cacheReadTokens": 13172
+      }
+    ]
+  },
+  "codexSolWarmBothSlices::foldCache": {
+    "records": [
+      {
+        "customerExternalId": "dev@example.test",
+        "agentCode": "codex",
+        "signalName": "codex-turn",
+        "model": "gpt-5.6-sol",
+        "modelProvider": "openai",
+        "inputTokens": 13301,
+        "outputTokens": 34,
+        "environment": "development",
+        "metadata": {
+          "source": "codex",
+          "sessionId": "session-5",
+          "rawModel": "gpt-5.6-sol",
+          "cachedTokens": 13172,
+          "reasoningTokens": 13,
+          "toolTokens": 13335,
+          "cacheFoldedIntoInput": true
+        }
+      }
+    ]
+  },
+  "codexSolZeroWrite": {
+    "records": [
+      {
+        "customerExternalId": "dev@example.test",
+        "agentCode": "codex",
+        "signalName": "codex-turn",
+        "model": "gpt-5.6-sol",
+        "modelProvider": "openai",
+        "inputTokens": 10814,
+        "outputTokens": 0,
+        "environment": "development",
+        "metadata": {
+          "source": "codex",
+          "sessionId": "session-4",
+          "rawModel": "gpt-5.6-sol",
+          "cachedTokens": 0,
+          "reasoningTokens": 0,
+          "toolTokens": 10814,
+          "cacheFoldedIntoInput": false
+        },
+        "cacheReadTokens": 0
+      }
+    ]
+  },
+  "codexSolZeroWrite::foldCache": {
+    "records": [
+      {
+        "customerExternalId": "dev@example.test",
+        "agentCode": "codex",
+        "signalName": "codex-turn",
+        "model": "gpt-5.6-sol",
+        "modelProvider": "openai",
+        "inputTokens": 10814,
+        "outputTokens": 0,
+        "environment": "development",
+        "metadata": {
+          "source": "codex",
+          "sessionId": "session-4",
+          "rawModel": "gpt-5.6-sol",
+          "cachedTokens": 0,
+          "reasoningTokens": 0,
+          "toolTokens": 10814,
+          "cacheFoldedIntoInput": true
+        }
+      }
+    ]
+  },
+  "codexGpt55WithZeroCacheWriteAttr": {
+    "records": [
+      {
+        "customerExternalId": "dev@example.test",
+        "agentCode": "codex",
+        "signalName": "codex-turn",
+        "model": "gpt-5.5",
+        "modelProvider": "openai",
+        "inputTokens": 11173,
+        "outputTokens": 0,
+        "environment": "development",
+        "metadata": {
+          "source": "codex",
+          "sessionId": "session-31",
+          "rawModel": "gpt-5.5",
+          "cachedTokens": 0,
+          "reasoningTokens": 0,
+          "toolTokens": 11173,
+          "cacheFoldedIntoInput": false
+        },
+        "cacheReadTokens": 0
+      },
+      {
+        "customerExternalId": "dev@example.test",
+        "agentCode": "codex",
+        "signalName": "codex-turn",
+        "model": "gpt-5.5",
+        "modelProvider": "openai",
+        "inputTokens": 11173,
+        "outputTokens": 0,
+        "environment": "development",
+        "metadata": {
+          "source": "codex",
+          "sessionId": "session-32",
+          "rawModel": "gpt-5.5",
+          "cachedTokens": 0,
+          "reasoningTokens": 0,
+          "toolTokens": 11173,
+          "cacheFoldedIntoInput": false
+        },
+        "cacheReadTokens": 0
+      }
+    ]
+  },
+  "codexGpt55WithZeroCacheWriteAttr::foldCache": {
+    "records": [
+      {
+        "customerExternalId": "dev@example.test",
+        "agentCode": "codex",
+        "signalName": "codex-turn",
+        "model": "gpt-5.5",
+        "modelProvider": "openai",
+        "inputTokens": 11173,
+        "outputTokens": 0,
+        "environment": "development",
+        "metadata": {
+          "source": "codex",
+          "sessionId": "session-31",
+          "rawModel": "gpt-5.5",
+          "cachedTokens": 0,
+          "reasoningTokens": 0,
+          "toolTokens": 11173,
+          "cacheFoldedIntoInput": true
+        }
+      },
+      {
+        "customerExternalId": "dev@example.test",
+        "agentCode": "codex",
+        "signalName": "codex-turn",
+        "model": "gpt-5.5",
+        "modelProvider": "openai",
+        "inputTokens": 11173,
+        "outputTokens": 0,
+        "environment": "development",
+        "metadata": {
+          "source": "codex",
+          "sessionId": "session-32",
+          "rawModel": "gpt-5.5",
+          "cachedTokens": 0,
+          "reasoningTokens": 0,
+          "toolTokens": 11173,
+          "cacheFoldedIntoInput": true
+        }
+      }
+    ]
+  },
+  "codexGpt55NoCacheWriteAttr": {
+    "records": [
+      {
+        "customerExternalId": "dev@example.test",
+        "agentCode": "codex",
+        "signalName": "codex-turn",
+        "model": "gpt-5.5",
+        "modelProvider": "openai",
+        "inputTokens": 11160,
+        "outputTokens": 0,
+        "environment": "development",
+        "metadata": {
+          "source": "codex",
+          "sessionId": "session-3",
+          "rawModel": "gpt-5.5",
+          "cachedTokens": 0,
+          "reasoningTokens": 0,
+          "toolTokens": 11160,
+          "cacheFoldedIntoInput": false
+        },
+        "cacheReadTokens": 0
+      }
+    ]
+  },
+  "codexGpt55NoCacheWriteAttr::foldCache": {
+    "records": [
+      {
+        "customerExternalId": "dev@example.test",
+        "agentCode": "codex",
+        "signalName": "codex-turn",
+        "model": "gpt-5.5",
+        "modelProvider": "openai",
+        "inputTokens": 11160,
+        "outputTokens": 0,
+        "environment": "development",
+        "metadata": {
+          "source": "codex",
+          "sessionId": "session-3",
+          "rawModel": "gpt-5.5",
+          "cachedTokens": 0,
+          "reasoningTokens": 0,
+          "toolTokens": 11160,
+          "cacheFoldedIntoInput": true
+        }
+      }
+    ]
+  },
+  "codexGpt54Mini": {
+    "records": [
+      {
+        "customerExternalId": "dev@example.test",
+        "agentCode": "codex",
+        "signalName": "codex-turn",
+        "model": "gpt-5.4-mini",
+        "modelProvider": "openai",
+        "inputTokens": 4490,
+        "outputTokens": 0,
+        "environment": "development",
+        "metadata": {
+          "source": "codex",
+          "sessionId": "session-22",
+          "rawModel": "gpt-5.4-mini",
+          "cachedTokens": 0,
+          "reasoningTokens": 0,
+          "toolTokens": 4490,
+          "cacheFoldedIntoInput": false
+        },
+        "cacheReadTokens": 0
+      }
+    ]
+  },
+  "codexGpt54Mini::foldCache": {
+    "records": [
+      {
+        "customerExternalId": "dev@example.test",
+        "agentCode": "codex",
+        "signalName": "codex-turn",
+        "model": "gpt-5.4-mini",
+        "modelProvider": "openai",
+        "inputTokens": 4490,
+        "outputTokens": 0,
+        "environment": "development",
+        "metadata": {
+          "source": "codex",
+          "sessionId": "session-22",
+          "rawModel": "gpt-5.4-mini",
+          "cachedTokens": 0,
+          "reasoningTokens": 0,
+          "toolTokens": 4490,
+          "cacheFoldedIntoInput": true
+        }
+      }
+    ]
+  },
+  "claudeCodeMetricLines": [
+    {
+      "records": [
+        {
+          "customerExternalId": "dev@example.test",
+          "agentCode": "claude-code",
+          "signalName": "claude-code-turn",
+          "model": "claude-haiku-4-5-20251001",
+          "modelProvider": "anthropic",
+          "inputTokens": 16452,
+          "outputTokens": 224,
+          "environment": "development",
+          "metadata": {
+            "sessionId": "session-1",
+            "rawModel": "claude-haiku-4-5-20251001",
+            "cacheReadTokens": 0,
+            "cacheCreationTokens": 0,
+            "cacheFoldedIntoInput": false,
+            "claudeCodeCostUsd": 0.027572
+          },
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0
+        },
+        {
+          "customerExternalId": "dev@example.test",
+          "agentCode": "claude-code",
+          "signalName": "claude-code-turn",
+          "model": "claude-sonnet-5",
+          "modelProvider": "anthropic",
+          "inputTokens": 10,
+          "outputTokens": 6422,
+          "environment": "development",
+          "metadata": {
+            "sessionId": "session-1",
+            "rawModel": "claude-sonnet-5",
+            "cacheReadTokens": 366259,
+            "cacheCreationTokens": 78067,
+            "cacheFoldedIntoInput": false,
+            "claudeCodeCostUsd": 0.6237090000000001
+          },
+          "cacheReadTokens": 366259,
+          "cacheWriteTokens": 78067
+        }
+      ]
+    },
+    {
+      "records": [
+        {
+          "customerExternalId": "dev@example.test",
+          "agentCode": "claude-code",
+          "signalName": "claude-code-turn",
+          "model": "claude-haiku-4-5-20251001",
+          "modelProvider": "anthropic",
+          "inputTokens": 655,
+          "outputTokens": 15,
+          "environment": "development",
+          "metadata": {
+            "sessionId": "session-2",
+            "rawModel": "claude-haiku-4-5-20251001",
+            "cacheReadTokens": 0,
+            "cacheCreationTokens": 0,
+            "cacheFoldedIntoInput": false,
+            "claudeCodeCostUsd": 0.00073
+          },
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 0
+        },
+        {
+          "customerExternalId": "dev@example.test",
+          "agentCode": "claude-code",
+          "signalName": "claude-code-turn",
+          "model": "claude-opus-4.8",
+          "modelProvider": "anthropic",
+          "inputTokens": 11,
+          "outputTokens": 3885,
+          "environment": "development",
+          "metadata": {
+            "sessionId": "session-2",
+            "rawModel": "claude-opus-4-8[1m]",
+            "cacheReadTokens": 377030,
+            "cacheCreationTokens": 66015,
+            "cacheFoldedIntoInput": false,
+            "claudeCodeCostUsd": 0.6996694999999999
+          },
+          "cacheReadTokens": 377030,
+          "cacheWriteTokens": 66015
+        }
+      ]
+    },
+    {
+      "records": [
+        {
+          "customerExternalId": "dev@example.test",
+          "agentCode": "claude-code",
+          "signalName": "claude-code-turn",
+          "model": "claude-fable-5",
+          "modelProvider": "anthropic",
+          "inputTokens": 2,
+          "outputTokens": 4562,
+          "environment": "development",
+          "metadata": {
+            "sessionId": "session-1",
+            "rawModel": "claude-fable-5",
+            "cacheReadTokens": 20272,
+            "cacheCreationTokens": 71516,
+            "cacheFoldedIntoInput": false,
+            "claudeCodeCostUsd": 1.678712
+          },
+          "cacheReadTokens": 20272,
+          "cacheWriteTokens": 71516
+        }
+      ]
+    }
+  ]
+}

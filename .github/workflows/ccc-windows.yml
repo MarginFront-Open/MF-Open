@@ -1,0 +1,135 @@
+name: CCC Windows
+
+on:
+  pull_request:
+    paths:
+      - "packages/code-cost-clarity/**"
+      - ".github/workflows/ccc-windows.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+  TURBO_TELEMETRY_DISABLED: "1"
+
+jobs:
+  windows-vitest:
+    name: code-cost-clarity vitest (windows-latest)
+    runs-on: windows-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          # Matches the Node version in ci.yml: the code-cost-clarity CLI tests use module.registerHooks,
+          # which Node 20 does not have.
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Record the runner's real home
+        id: real_home
+        run: |
+          "dir=$env:USERPROFILE" >> $env:GITHUB_OUTPUT
+
+      - name: Create a throwaway home
+        id: throwaway_home
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP "ccc-home-$([guid]::NewGuid())"
+          New-Item -ItemType Directory -Path $dir | Out-Null
+          "dir=$dir" >> $env:GITHUB_OUTPUT
+
+      - name: Snapshot the real home before the suite runs
+        run: |
+          $paths = @(
+            (Join-Path $env:USERPROFILE ".marginfront-ccc"),
+            (Join-Path $env:USERPROFILE ".claude"),
+            (Join-Path $env:USERPROFILE ".codex")
+          )
+          $snapshot = @{}
+          foreach ($p in $paths) { $snapshot[$p] = (Test-Path $p) }
+          $snapshot | ConvertTo-Json | Out-File -FilePath "$env:RUNNER_TEMP/real-home-before.json" -Encoding utf8
+          Get-Content "$env:RUNNER_TEMP/real-home-before.json"
+
+      - name: Prove the suite cannot reach the real home
+        env:
+          # Node's os.homedir() reads USERPROFILE on Windows, not HOME (libuv
+          # uv_os_homedir). HOME is set too for any tool that reads it directly.
+          USERPROFILE: ${{ steps.throwaway_home.outputs.dir }}
+          HOME: ${{ steps.throwaway_home.outputs.dir }}
+          CCC_EXPECTED_HOME: ${{ steps.throwaway_home.outputs.dir }}
+          CCC_REAL_HOME: ${{ steps.real_home.outputs.dir }}
+        run: |
+          node -e "const os=require('node:os');const path=require('node:path');const resolved=path.resolve(os.homedir());const expected=path.resolve(process.env.CCC_EXPECTED_HOME);const real=path.resolve(process.env.CCC_REAL_HOME);if(resolved!==expected||resolved===real){console.error('Home isolation FAILED. os.homedir() resolved to '+resolved+' but the throwaway home is '+expected+'. Refusing to run the suite against a real home.');process.exit(1);}console.log('Home isolation OK. os.homedir() -> '+resolved);"
+
+      - name: Run the code-cost-clarity vitest suite
+        working-directory: packages/code-cost-clarity
+        env:
+          USERPROFILE: ${{ steps.throwaway_home.outputs.dir }}
+          HOME: ${{ steps.throwaway_home.outputs.dir }}
+          CI: "true"
+          # The Windows-only tests register a real scheduled task and
+          # read it back; this is where they drop what the Task Scheduler service
+          # actually returned. It is uploaded below so the parser can be checked against
+          # captured reality instead of against the XML this package generates. The
+          # files hold a task definition and a task-name list, no credentials.
+          CCC_WINDOWS_CAPTURE_DIR: ${{ runner.temp }}/windows-capture
+        run: npx vitest run --reporter=verbose --reporter=json --outputFile.json=${{ runner.temp }}/vitest-results.json
+
+      - name: Prove no test scheduled task was left behind
+        if: always()
+        run: |
+          # The live tests each delete their own task and an afterAll sweeps the rest.
+          # A task the tests leave behind on a developer's machine goes unnoticed, so
+          # the job fails here when one survives on the runner.
+          $leftovers = schtasks /Query /FO CSV /NH 2>$null |
+            Select-String -Pattern "ai\.marginfront\.ccc"
+          if ($leftovers) {
+            Write-Error "Scheduled tasks left behind by the suite: $leftovers"
+            exit 1
+          }
+          Write-Output "No MarginFront scheduled tasks remain."
+
+      - name: Check the suite did not write into the real home
+        if: always()
+        run: |
+          $before = Get-Content "$env:RUNNER_TEMP/real-home-before.json" -Raw | ConvertFrom-Json
+          $leaked = @()
+          foreach ($prop in $before.PSObject.Properties) {
+            $existsNow = Test-Path $prop.Name
+            if ($existsNow -and -not $prop.Value) { $leaked += $prop.Name }
+          }
+          if ($leaked.Count -gt 0) {
+            Write-Error "The suite created these paths in the runner's real home: $($leaked -join ', ')"
+            exit 1
+          }
+          Write-Output "Real home is untouched."
+
+      - name: Upload vitest results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ccc-windows-vitest-results
+          path: ${{ runner.temp }}/vitest-results.json
+          if-no-files-found: warn
+
+      - name: Upload what Windows said about the registered task
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ccc-windows-task-capture
+          path: ${{ runner.temp }}/windows-capture
+          if-no-files-found: warn

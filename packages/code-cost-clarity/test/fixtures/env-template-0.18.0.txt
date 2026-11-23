@@ -1,0 +1,140 @@
+# ============================================================
+# Claude Code -> MarginFront connector: environment settings
+# ============================================================
+# MAIN JOB of this file: hold your MARGINFRONT_API_KEY (below) so the background
+# meter can read it - fill that in (init usually does it for you).
+#
+# You do NOT need to 'source' this before running Claude Code:
+# 'init' wires the telemetry settings into ~/.claude/settings.json for you, so
+# every 'claude'/'codex' session (and the desktop apps) broadcast on their own.
+# Sourcing this is only useful for the manual, foreground 'run' path.
+#
+# This file stays on your machine; it is never published or committed.
+# ============================================================
+
+# Turns on Claude Code's usage broadcasting. Leave as 1.
+CLAUDE_CODE_ENABLE_TELEMETRY=1
+
+# Send usage as OpenTelemetry metrics. Leave as otlp.
+OTEL_METRICS_EXPORTER=otlp
+
+# Send Claude Code's EVENTS (the per-tool-call records) too. Leave as otlp.
+# Tokens come in as metrics (above); a paid tool call (Google Maps, Browserbase,
+# a paid MCP server) only shows up on this EVENT stream - without this line Claude
+# Code broadcasts no tool activity and tool spend can't be tracked.
+OTEL_LOGS_EXPORTER=otlp
+
+# Use HTTP/protobuf. Leave as is: gRPC on 4317 drops data without an error.
+OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+
+# Where the local collector listens. Must match the collector YAML.
+OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318
+
+# How often Claude Code flushes usage (token METRICS), in milliseconds.
+#   300000 = 5 minutes - batches usage so you get roughly one event per turn
+#   without a long wait. Raise to 600000 (10 min) to batch harder; lower to
+#   60000 (1 min) or 5000 (5 s) for a more live drip.
+OTEL_METRIC_EXPORT_INTERVAL=300000
+
+# Same batching for the EVENT stream (the per-tool-call records above). Keep it
+# equal to OTEL_METRIC_EXPORT_INTERVAL so tool activity flushes on the same
+# 5-minute beat as tokens; lower both together if you want a livelier drip.
+OTEL_LOGS_EXPORT_INTERVAL=300000
+
+# Labels each MCP tool call with its server + tool name so a paid MCP tool (a metered
+# API behind an MCP server) can be told apart from a free one - without this line every
+# MCP call is the indistinguishable bucket "mcp_tool". Names-only leaves your machine:
+# this flag also makes Claude Code write tool ARGUMENTS into the local telemetry file,
+# but the meter forwards only the two names, never the arguments. Set to 0 (or delete)
+# to keep MCP calls in the single unnamed bucket.
+OTEL_LOG_TOOL_DETAILS=1
+
+# Tool-call costs need NOTHING configured here. EVERY tool your agents fire is
+# forwarded automatically - free built-ins like Read/Bash included (they're priced
+# $0 by MarginFront's catalog). The catalog decides what's billable and at what
+# rate. Add price rows for your paid tools in MarginFront - there's no client-side
+# list to maintain.
+
+# WHO this machine's AI cost belongs to (per-developer attribution).
+# WHY THIS EXISTS, plainly: lots of teams share ONE Claude/Codex login, so every
+# developer's usage carries the SAME login email and all the cost piles onto one
+# person. CCC runs locally on each laptop, so naming the developer here splits that
+# shared-login cost back out per developer. This is INTERNAL cost visibility only -
+# it does NOT change anyone's bill.
+#
+# HOW IT'S USED at send time (precedence, highest wins):
+#   1. This CCC_DEVELOPER_EMAIL, when set - it wins for EVERY record from this machine.
+#   2. Otherwise the email the coding-agent login reports (user.email).
+#   3. Otherwise a clearly-labeled no-identity placeholder.
+# Leave it BLANK to keep today's behavior (auto-detect from the login). init fills
+# this in for you, defaulting to your global git user.email - change it anytime.
+CCC_DEVELOPER_EMAIL=
+
+# WHICH WORK ITEM this machine's spend belongs to.
+# WHAT IT DOES, plainly: without it, the meter can only say "this machine spent $18
+# this week." With it, it can say "$18 went to the Q3 pricing model."
+# The name you put here is stamped on every record this machine sends - tokens AND
+# tool calls, Claude Code AND Codex - so your spend adds up by job, not by clock.
+#
+# DO THIS:
+#   1. Pick a short name for the piece of work: a ticket number, or plain words.
+#   2. Type that name after the = below and save this file. There's nothing to
+#      restart: the meter reads this line again on the next usage it sends.
+#
+# USE THE SAME SPELLING EVERY TIME, capital letters included. PROJ-123 and
+# proj-123 are two different things here, and they add up as two separate jobs.
+#
+# This line is about spend. Counting what you FINISH is a separate switch, off until
+# you run node ~/.marginfront-ccc/cli.js done --setup, and that command says
+# where to go and look once it is on.
+#
+# Leave it BLANK for no work item on the records - nothing breaks. Anything past 255 characters is trimmed.
+CCC_WORK_ID=
+
+# An older name for the line above. It still works: if CCC_WORK_ID is blank, this
+# one is used. New machines should use CCC_WORK_ID.
+CCC_MATTER_ID=
+
+# THE NAMES OF THE THINGS YOU FINISH, comma-separated.
+# WHAT IT DOES, plainly: spend counting needs nothing here and never will. This line
+# is the other half - what your team FINISHES - so your MarginFront page can say "a
+# contract summary cost $4.10" instead of only "this machine spent $18 this week".
+# `init` asks for these once (the question defaults to No), writes them here, and
+# adds a short note to your coding assistant's memory file telling it to run
+# `done "<name>"` when it finishes one of them.
+#
+# Use the words YOUR team uses, a few each: contract summarized, slide deck, bug fixed.
+# Reuse the same name every time - the page groups by name, ignoring capitals.
+#
+# Leave it BLANK to keep spend-only counting. Turn it on later with
+# `node ~/.marginfront-ccc/cli.js done --setup`, which asks both questions again.
+CCC_FINISHED_WORK=
+
+# WHICH prompt-cache WRITE rate this machine's Claude Code sessions get billed at.
+# Anthropic bills "cache writes" (saving your prompt for reuse) at two rates,
+# depending on how Claude Code signs in:
+#   5m = 5-minute cache (API key / Bedrock / Vertex sign-ins) - 1.25x input rate
+#   1h = 1-hour cache (Claude subscription sign-ins: Pro/Max/Team) - 2x input rate
+# init detects this (or asks one question) and fills it in. Leave BLANK if unsure:
+# MarginFront then prices cache writes at the 1-hour ceiling, which can overstate
+# but never understate. Change it anytime if this machine's sign-in changes.
+CCC_CACHE_WRITE_TTL=
+
+# WHICH MarginFront server this machine sends to: your server's API address,
+# including /v1. Example: https://billing.example.com/v1
+# REQUIRED - there is no built-in server, and nothing is sent until this is set.
+# It must be https, or http to this machine (localhost, 127.0.0.1, [::1]).
+# init fills it in. Change it here, then `stop` and `start`.
+MARGINFRONT_API_URL=
+
+# Leave this OFF unless your server is plain http on a private network you trust.
+# Set to 1 to allow http to another machine; your key then travels unencrypted.
+MARGINFRONT_ALLOW_INSECURE_HTTP=
+
+# YOUR MarginFront SECRET key (mf_sk_*). Create or copy one in your MarginFront
+# dashboard: Build -> API keys -> "Create key pair".
+# Use the SECRET key (mf_sk_*) - a publishable key (mf_pk_*) is rejected on send.
+# The forwarder reads this from the environment only; it is never hardcoded.
+# Leave blank to run in no-identity preview mode: nothing is sent, and `preview`
+# still shows what would be.
+MARGINFRONT_API_KEY=

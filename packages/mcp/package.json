@@ -1,0 +1,50 @@
+{
+  "name": "@marginfront/mcp",
+  "version": "2.0.0",
+  "private": true,
+  "description": "MCP server for MarginFront. Lets AI agents (Claude, Cursor, Copilot) record usage events, create and look up agents + signals, query revenue / cost / MRR analytics, manage customers + subscriptions + pricing plans, set per-customer cost and revenue watch alerts, read and manage internal code-spend caps, break down internal AI spend by repo or branch, read customer credit-pool balances, browse the supported-services catalog, generate and email invoices, manage customer portal sessions, and run the matter record (matters, routing rules, and the per-matter audit export) via plain English. 58 tools covering the full billing surface.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "marginfront-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "llms-mcp.txt"
+  ],
+  "scripts": {
+    "build": "tsc && chmod 755 dist/index.js",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "marginfront",
+    "mcp",
+    "model-context-protocol",
+    "ai-agent",
+    "billing",
+    "usage-tracking",
+    "revenue-analytics",
+    "mrr",
+    "claude",
+    "cursor",
+    "anthropic",
+    "llm-billing"
+  ],
+  "author": "The MarginFront Authors",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

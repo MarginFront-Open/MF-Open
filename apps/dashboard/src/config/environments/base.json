@@ -1,0 +1,142 @@
+{
+  "$schema": "../schema.json",
+  "_description": "Base configuration shared across all environments. Values here are defaults that can be overridden by environment-specific configs.",
+
+  "app": {
+    "name": "MarginFront Dashboard",
+    "version": "1.0.0",
+    "description": "Usage-based billing platform dashboard"
+  },
+
+  "api": {
+    "baseUrl": "http://localhost:4000/v1",
+    "timeout": 30000,
+    "retryAttempts": 3,
+    "retryDelay": 1000,
+    "endpoints": {
+      "auth": {
+        "login": "/auth/login",
+        "register": "/auth/register",
+        "refreshToken": "/auth/refresh-tokens",
+        "forgotPassword": "/auth/forgot-password",
+        "sendResetPasswordOtp": "/auth/send-reset-password-otp",
+        "resetPassword": "/auth/reset-password",
+        "verifyOtp": "/auth/verify-email",
+        "logout": "/auth/logout",
+        "googleLogin": "/auth/google",
+        "googleCallback": "/auth/google/callback"
+      },
+      "user": {
+        "profile": "/users/me",
+        "updateProfile": "/users/me"
+      },
+      "organization": {
+        "current": "/organizations/current",
+        "create": "/organizations",
+        "update": "/organizations",
+        "delete": "/organizations"
+      },
+      "agents": {
+        "base": "/org/:orgId/agents",
+        "detail": "/org/:orgId/agents/:agentId",
+        "signals": "/org/:orgId/agents/:agentId/signals"
+      },
+      "apiKeys": {
+        "base": "/org/:orgId/developer/api-keys",
+        "detail": "/org/:orgId/developer/api-keys/:keyId",
+        "revoke": "/org/:orgId/developer/api-keys/:keyId/revoke"
+      },
+      "customers": {
+        "base": "/org/:orgId/customers",
+        "detail": "/org/:orgId/customers/:customerId"
+      },
+      "pricingPlans": {
+        "base": "/org/:orgId/pricing-plans",
+        "detail": "/org/:orgId/pricing-plans/:planId",
+        "strategies": "/org/:orgId/pricing-plans/:planId/pricing-strategies",
+        "strategyDetail": "/org/:orgId/pricing-plans/:planId/pricing-strategies/:strategyId"
+      },
+      "analytics": {
+        "usage": "/org/:orgId/analytics/usage",
+        "costs": "/org/:orgId/analytics/costs",
+        "subscription": "/org/:orgId/analytics/subscription/:subscriptionId",
+        "customer": "/org/:orgId/analytics/customer",
+        "agent": "/org/:orgId/analytics/agent",
+        "revenue": "/org/:orgId/analytics/revenue",
+        "profitability": "/org/:orgId/analytics/profitability",
+        "eventsAggregate": "/org/:orgId/analytics/events/aggregate"
+      },
+      "signalEvents": {
+        "base": "/org/:orgId/events",
+        "detail": "/org/:orgId/events/:eventId"
+      },
+      "filters": {
+        "base": "/org/:orgId/filters"
+      },
+      "invoices": {
+        "base": "/org/:orgId/invoices",
+        "detail": "/org/:orgId/invoices/:invoiceId",
+        "pdf": "/org/:orgId/invoices/:invoiceId/pdf"
+      },
+      "subscriptions": {
+        "base": "/org/:orgId/subscriptions",
+        "detail": "/org/:orgId/subscriptions/:subscriptionId",
+        "renew": "/org/:orgId/subscriptions/:subscriptionId/renew"
+      },
+      "paymentProviders": {
+        "base": "/org/:orgId/payment-providers",
+        "detail": "/org/:orgId/payment-providers/:providerId"
+      },
+      "payments": {
+        "invoicePayments": "/org/:orgId/invoices/:invoiceId/payments",
+        "refund": "/org/:orgId/payments/:transactionId/refund"
+      },
+      "publicPayments": {
+        "checkout": "/public/invoices/:invoiceId/checkout",
+        "status": "/public/invoices/:invoiceId/payment-status"
+      },
+      "webhooks": {
+        "stripe": "/webhooks/stripe"
+      }
+    }
+  },
+
+  "features": {
+    "useMockInvoices": false,
+    "enableAnalytics": true,
+    "enableSentry": true,
+    "enableBetterStack": false,
+    "debugMode": false
+  },
+
+  "ui": {
+    "defaultTheme": "system",
+    "animationsEnabled": true,
+    "toastDuration": 5000,
+    "paginationDefaults": {
+      "pageSize": 10,
+      "pageSizeOptions": [10, 25, 50, 100]
+    }
+  },
+
+  "auth": {
+    "betterAuthUrl": "http://localhost:3000",
+    "trustedOrigins": ["http://localhost:3000"],
+    "sessionTimeout": 3600000,
+    "refreshThreshold": 300000,
+    "tokenStorageKey": "marginfront_access_token",
+    "rememberMeDays": 30
+  },
+
+  "logging": {
+    "level": "info",
+    "enableConsole": true,
+    "enableRemote": false
+  },
+
+  "company": {
+    "name": "MarginFront",
+    "supportEmail": "",
+    "website": ""
+  }
+}

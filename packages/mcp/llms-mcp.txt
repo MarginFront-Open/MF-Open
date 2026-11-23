@@ -1,0 +1,844 @@
+# MarginFront MCP Integration: Complete Reference
+
+> Usage-based billing for AI agent companies. The MCP server lets AI coding assistants (Claude Code, Cursor, VS Code, etc.) manage your MarginFront account in plain English. Track events, query costs, manage customers, and debug billing issues.
+
+## Where to look first
+
+Everything is in the MarginFront source repository. Nothing here is hosted, and neither package is installed from a registry.
+
+- This file (MCP-specific reference): packages/mcp/llms-mcp.txt
+- MCP setup, environment variables and troubleshooting: packages/mcp/README.md
+- SDK (the production integration path): packages/sdk/README.md
+
+## What MCP Is For (and When to Reach for the SDK)
+
+MCP is the conversational layer on top of MarginFront. For a new user it is the fastest way to (1) prove the pipe works and (2) get the real integration written, and it is the everyday tool for ad-hoc account work. Use MCP for:
+
+- Onboarding: fire a first test event in plain English to confirm the connection, then have the AI assistant write the permanent @marginfront/sdk (or REST) call into the user's codebase, at the exact spot where their agent completes a billable outcome.
+- Ad-hoc operations: query revenue, cost, and MRR; look up or fix customers; backfill historical events from a CSV or SQL dump; bulk-fix unrecognized models with map_model.
+- Managing pricing plans, strategies, and subscriptions conversationally.
+
+MCP is NOT the production hot path. The MCP server runs through an LLM and is built for conversational, ad-hoc use, not for recording an event on every request in live traffic. For per-event tracking from production code, the user instruments their product with the typed @marginfront/sdk package or a direct call to the REST API of the user's own MarginFront server (the address in MARGINFRONT_API_URL). When an AI assistant connected via MCP is asked to "track this from production," the right move is to write that SDK or REST call into the codebase, not to call record_usage on every event through MCP.
+
+## Auto-provisioning
+
+The MarginFront API auto-provisions records on first sight. When `record_usage` (or `record_usage_batch`) is called with a `customerExternalId`, `agentCode`, or `signalName` that has not been seen before:
+- The customer is created with `name` defaulting to the `customerExternalId` value.
+- The agent is created with `name` defaulting to the `agentCode` value.
+- The signal is created with `shortName` defaulting to the `signalName` value.
+
+This means an AI agent does not need to walk a "create customer → create agent → create signal → record event" sequence on the user's behalf. One `record_usage` call is enough. The dashboard reflects the new records immediately. The user can rename or enrich any of them later in the dashboard or via the corresponding API.
+
+What does NOT auto-provision: pricing plans, pricing strategies, subscriptions, invoices, team members. Those are explicit and require the dedicated tools.
+
+## Connection Details
+
+**Transport:** stdio (runs locally with node, from a build of this repository)
+**Auth:** API key via MF_API_SECRET_KEY environment variable
+**API Base:** MARGINFRONT_API_URL. Required, no default: the address of the user's own MarginFront server, including /v1 (for example https://billing.example.com/v1 or http://localhost:4000/v1). Must be https, or http to this machine. The server refuses to start without it, sends only to it, and refuses redirects.
+**Build:** from the repository root, `npm ci` then `npx turbo run build --filter=@marginfront/mcp`. The server is `packages/mcp/dist/index.js`.
+
+## Setup
+
+### Claude Code
+
+Add to `.mcp.json` in your project root:
+
+```json
+{
+  "mcpServers": {
+    "marginfront": {
+      "command": "node",
+      "args": ["/absolute/path/to/marginfront/packages/mcp/dist/index.js"],
+      "env": {
+        "MF_API_SECRET_KEY": "mf_sk_your_key_here",
+        "MARGINFRONT_API_URL": "https://billing.example.com/v1"
+      }
+    }
+  }
+}
+```
+
+### Claude Desktop
+
+Add to `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "marginfront": {
+      "command": "node",
+      "args": ["/absolute/path/to/marginfront/packages/mcp/dist/index.js"],
+      "env": {
+        "MF_API_SECRET_KEY": "mf_sk_your_key_here",
+        "MARGINFRONT_API_URL": "https://billing.example.com/v1"
+      }
+    }
+  }
+}
+```
+
+### Cursor
+
+Add to `.cursor/mcp.json` in your project root:
+
+```json
+{
+  "mcpServers": {
+    "marginfront": {
+      "command": "node",
+      "args": ["/absolute/path/to/marginfront/packages/mcp/dist/index.js"],
+      "env": {
+        "MF_API_SECRET_KEY": "mf_sk_your_key_here",
+        "MARGINFRONT_API_URL": "https://billing.example.com/v1"
+      }
+    }
+  }
+}
+```
+
+### VS Code / Windsurf / Codex
+
+Add to `.vscode/mcp.json` (note: `servers` not `mcpServers`):
+
+```json
+{
+  "servers": {
+    "marginfront": {
+      "command": "node",
+      "args": ["/absolute/path/to/marginfront/packages/mcp/dist/index.js"],
+      "env": {
+        "MF_API_SECRET_KEY": "mf_sk_your_key_here",
+        "MARGINFRONT_API_URL": "https://billing.example.com/v1"
+      }
+    }
+  }
+}
+```
+
+## Core Concepts
+
+- **Agent**: An AI product or service that does work (a support bot, research assistant, etc.). Has an `agentCode`. Auto-provisioned on first event with a new `agentCode`.
+- **Customer**: Who is being billed. Has an `externalId` that matches the user's own system ID. Auto-provisioned on first event with a new `customerExternalId`.
+- **Signal**: The billing unit being tracked (e.g. `messages`, `reports-generated`). NOT internal API calls. Auto-provisioned on first event with a new `signalName`.
+- **Event**: A record that agent X did Y quantity of signal Z for customer W. Carries model/provider for cost calculation.
+- **Pricing Plan**: How much the user charges per unit of each signal. Created explicitly via `create_pricing_plan`.
+- **Subscription**: Links a customer to an agent via a pricing plan. Defines billing cycle. Created explicitly via `create_subscription`.
+- **Invoice**: Auto-generated from subscriptions.
+- **Credit Pool**: A pricing model ("5,000 tasks for $99 a cycle, then $0.03 each") with a live countdown. Nothing stops at zero; the overage keeps billing. Read countdowns with `get_credit_balances`.
+
+## Signal-Naming Rule for AI Agents
+
+When an AI agent uses the MCP tools to create a signal or record a usage event on behalf of a user, the signal name choice determines what the user's customer will see on their invoice. AI agents using these tools should follow these rules:
+
+1. Fire ONE event per business outcome. One report finishing = 1 event with quantity=N (where N is the page count). One call ending = 1 event with quantity=N (where N is the minute count). Never call record_usage in a loop, one per page or per minute. That would multiply the bill.
+2. The signal name IS the billing unit the customer pays for. Before creating a new signal, ask the user what unit they want on their invoice. If they say "per page", the signalName must be something like "pages" or "report-pages". If they say "per report", use "reports" or "reports-generated". Match their language.
+3. quantity is the count of that billing unit for this one event. A 50-page report fired with signalName="pages" has quantity=50. Fired with signalName="reports", it has quantity=1. Same LLM call, different invoice.
+4. Never invent internal-sounding signal names on the user's behalf. Bad names (do NOT suggest these to users): "gpt-4o-call", "api-requests", "llm_call", "tokens". Good names (do suggest these): "messages", "reports-generated", "pages", "minutes", "emails-sent", "sms-sent".
+
+Example interaction the AI agent should follow:
+
+User: "My agent just finished generating a 12-page report for customer acme-001. Record it in MarginFront."
+AI (should ask first, if not already clear): "How do you want this billed: per report, or per page? That determines the signal name."
+User: "Per page."
+AI (calls record_usage): signalName="report-pages", quantity=12, model=<whatever the LLM was>, modelProvider=<lowercase>, plus the token counts. ONE call, not 12.
+
+The signal does not need to be created in advance. The first `record_usage` call with a new `signalName` auto-provisions the signal. The same naming rule applies: pick the unit the customer will see on the invoice. Whatever string is sent as `signalName` becomes the signal's display name until renamed in the dashboard.
+
+## One Event, Multiple Services
+
+Most realistic agent workflows use multiple underlying services to produce one business outcome. A research agent might run a web search, fetch the top pages, write the report with Claude Opus, and email it: four services, one report. A place-report agent might call Google Search, then Gemini, then the Places API: three services, one report. From the customer's perspective each is ONE outcome (one report generated). From the cost perspective N services contributed.
+
+Send this as ONE record_usage call with a services[] array. Each entry in services[] is one underlying service. The parent event is the customer-facing thing; each service entry becomes a per-service cost line under it.
+
+Example interaction the AI agent should follow:
+
+User: "I just generated one research report for acme-001 on the research-agent. It ran one web search, fetched 5 pages, used Claude Opus to write it (4500 input + 1200 output tokens), and sent one email."
+AI (calls record_usage):
+  customerExternalId="acme-001"
+  agentCode="research-agent"
+  signalName="reports-generated"
+  quantity=1   # signal-level: ONE report
+  services=[
+    {model: "web-search", modelProvider: "search-api", quantity: 1},
+    {model: "page-fetch", modelProvider: "scraper-api", quantity: 5},
+    {model: "claude-opus-4-1", modelProvider: "anthropic", inputTokens: 4500, outputTokens: 1200, quantity: 1},
+    {model: "transactional-email", modelProvider: "email-api", quantity: 1}
+  ]
+
+ONE record_usage call, NOT four. The dashboard shows one event in the live feed; the Cost-by-service chart shows the rolled-up total split across the four services.
+
+When to use which shape:
+- Single-service (top-level model + modelProvider): one event, one underlying service. The 90% case for chatbots.
+- Multi-service (services[]): one event, two or more underlying services for the same business outcome. The norm for orchestrated agents.
+
+The shapes are mutually exclusive. Send one shape OR the other, never both, never neither. Mixing returns a clear English error before the request leaves the agent.
+
+LLM services in services[] can carry tokens AND quantity at the same time. The Claude Opus entry above sets inputTokens, outputTokens, AND quantity=1. Use this when you want to track call count alongside tokens (e.g. when the same LLM service was invoked multiple times in one outcome via retries or chain-of-thought). If the same model+provider gets used N times for one outcome, you have two equally valid options: list each call as its own services[] entry (granular per-call resolution), or aggregate into one entry with summed tokens and quantity = N (compact). Both produce the same rolled-up parent cost.
+
+## Required Event Fields
+
+Every usage event requires these 3 fields plus one of two shapes:
+
+### Always required
+- **customerExternalId** (string): your customer's ID in your system (e.g., "acme-001")
+- **agentCode** (string): your agent's code from the dashboard (e.g., "cs-bot")
+- **signalName** (string): the metric being tracked (e.g., "messages", "reports")
+
+### Single-service shape (required when no `services[]`)
+- **model** (string): model identifier (e.g., "gpt-4o", "claude-sonnet-4", "twilio-sms")
+- **modelProvider** (string): provider name, lowercase (e.g., "openai", "anthropic", "twilio")
+
+For LLM events, also include:
+- **inputTokens** (number): prompt / input tokens
+- **outputTokens** (number): completion / output tokens
+
+For non-LLM or variable-quantity events:
+- **quantity** (number, default: 1): numeric count (pages, SMS, minutes, etc.)
+
+### Multi-service shape (required when no top-level `model`)
+- **services** (array, min 1 entry): one entry per underlying service contributing to the same business outcome. Each entry has its own model + modelProvider + per-service volume (inputTokens/outputTokens for LLM, quantity for non-LLM).
+- **quantity** (number, optional, default: 1): in multi-service this is signal-level (e.g., 1 for one report). Per-service volume goes inside each services[] entry.
+
+### Optional (both shapes)
+- **usageDate** (string, ISO 8601): when the event happened, defaults to now
+- **metadata** (object): free-form key-value pairs, stored but not used for billing
+
+## Tool Catalog (58 tools)
+
+### What an ingest-only key can reach
+
+Secret keys carry a dashboard role. An **ingest-only** key is the floor, and the server holds it to exactly five things: `record_usage`, `record_usage_batch`, `verify`, the key-identity read behind the SDK's `whoami()`, and `get_spend_controls` (the caps, spend, and coverage the on-device brake reads). Every other tool in this catalog returns a 403 for an ingest-only key, naming the role the key carries and where to get one that works.
+
+Every key role above ingest except legal (member, developer, finance, admin, owner) clears that gate. A legal key is confined separately, in the next section. Tools with their own `Required role` line below narrow it further on top.
+
+### What a legal key can reach
+
+A **legal** key is scoped the same way, one lane up: it reaches the twelve Matter tools plus exactly what an ingest-only key can reach (usage recording, `verify`, the key-identity read, `get_spend_controls`). Everything else in this catalog answers 403 for it: customers, invoices, events, analytics, pricing, portal sessions, all of it. That confinement is server-side and always on. Owner/admin mint legal keys; finance/admin/owner keys also clear every Matter tool.
+
+### Read-Only Tools
+
+#### verify
+Check that the API key is valid and see which organization it belongs to.
+- Parameters: none
+- Returns: organization name, verified status
+- Use when: first connecting, to confirm setup works
+
+#### list_customers
+List your customers with optional search and pagination.
+- Parameters:
+  - page (number, optional, default: 1)
+  - limit (number, optional, 1-100, default: 20)
+  - search (string, optional): search by name or external ID
+- Returns: customer names, IDs, status
+
+#### get_customer
+Get detailed info about a single customer by their MarginFront UUID. Optionally include revenue/cost/margin for a date window.
+- Parameters:
+  - customerId (string, required): the MarginFront UUID, NOT the externalId
+  - startDate (string, optional): if provided with endDate, the response also includes canonical revenue/cost/margin for the window (ISO 8601)
+  - endDate (string, optional): paired with startDate to include revenue data
+- Returns: full customer details including subscriptions and metadata. When both dates are given, a `revenue` object is appended with revenue, cost, margin, marginPercent, and per-strategy-type breakdown.
+
+#### list_invoices
+List invoices with optional filters.
+- Parameters:
+  - status (string, optional): one of "draft", "pending", "issued", "paid", "overdue", "void", "refunded"
+  - customerId (string, optional): filter by customer MarginFront UUID (from list_customers / get_customer, NOT the external ID)
+  - page (number, optional, default: 1)
+  - limit (number, optional, 1-100, default: 20)
+- Returns: invoice status, amounts, customer details
+
+#### get_invoice
+Get detailed info about a single invoice.
+- Parameters:
+  - invoiceId (string, required): invoice UUID
+- Returns: full invoice with line items and payment history
+
+#### list_events
+List usage events with optional filters.
+- Parameters:
+  - page (number, optional, default: 1)
+  - limit (number, optional, 1-100, default: 20)
+  - customerExternalId (string, optional): filter by customer external ID (the ID in your own system, e.g. "acme-001"). NOT the MarginFront UUID.
+  - agentId (string, optional): filter by agent UUID (from the dashboard or /agents endpoint)
+  - signalId (string, optional): filter by signal UUID (from /signals)
+  - startDate (string, optional): ISO 8601 date, events after this
+  - endDate (string, optional): ISO 8601 date, events before this
+- Returns: model, tokens, cost, customer, timestamp for each event
+
+#### get_usage_analytics
+Get aggregated usage analytics plus canonical margin for a date range.
+- Parameters:
+  - startDate (string, required): ISO 8601 start date (e.g., "2026-04-01")
+  - endDate (string, required): ISO 8601 end date (e.g., "2026-04-13")
+  - groupBy (string, optional): "agent", "customer", "signal", "model", or "day"
+  - customerExternalId (string, optional): scope to a single customer by their external ID (the ID in your own system, e.g. "acme-001"). Resolves to the MarginFront UUID automatically.
+- Returns: summary (totals, unique counts) + time-series data + `totalMargin` + `totalMarginPercent` (canonical revenue minus cost, over the same window).
+
+#### list_subscriptions
+List customer subscriptions.
+- Parameters:
+  - status (string, optional): "active", "canceled", "past_due", or "trialing"
+  - customerId (string, optional): filter by customer MarginFront UUID (from list_customers / get_customer, NOT the external ID)
+  - page (number, optional, default: 1)
+  - limit (number, optional, 1-100, default: 20)
+- Returns: status, plan details, billing dates
+
+#### get_customer_revenue
+Get canonical revenue metrics (revenue, cost, margin, marginPercent) for a single customer over a date window. Use when an agent asks "what revenue / margin did we get from customer X this month?"
+- Parameters:
+  - customerId (string, required): the MarginFront UUID from list_customers or get_customer (NOT the external ID)
+  - startDate (string, required): ISO 8601 start date (e.g. "2026-04-01")
+  - endDate (string, required): ISO 8601 end date (e.g. "2026-04-30")
+- Returns: canonical RevenueMetrics shape with revenue, cost, margin, marginPercent, event counts, and per-strategy-type breakdown.
+
+#### get_cost_metrics
+Get canonical cost metrics over a date window with breakdowns by agent, customer, signal, day, plan, and model. Use when an agent asks "what did we spend on providers this month?" or "what was our total cost for customer X?"
+- Parameters:
+  - startDate (string, required): ISO 8601 start date
+  - endDate (string, required): ISO 8601 end date
+  - customerId (string, optional): scope to a single customer by MarginFront UUID
+  - agentId (string, optional): scope to a single agent by MarginFront UUID
+  - includePriorWindow (boolean, optional, default: false): when true, adds a `prior` field with the same-length previous window for trend comparison
+- Returns: canonical CostMetrics shape with total cost + breakdowns (byAgent, byCustomer, bySignal, byDay, byPlan, byModel).
+
+#### get_mrr
+Get canonical MRR (monthly recurring revenue). Three variants exist:
+- `canonical` (MRR1): contracted monthly recurring revenue of active subscriptions, today. This is the default.
+- `runRate` (MRR2): trajectory based on last 30 days of usage + recurring commitments.
+- `committed` (MRR3): contractual floor from minimum commitments only.
+- `all`: returns all three in one response.
+Parameters:
+  - variant (string, optional): "canonical", "runRate", "committed", or "all"
+  - customerId (string, optional): narrow to one customer by MarginFront UUID
+  - subscriptionId (string, optional): narrow to one subscription by MarginFront UUID
+- Returns: the chosen MRR variant (or all three when variant="all").
+
+#### list_catalog_services
+List entries from the global service_pricing catalog. Use this BEFORE record_usage when sending events with new model+modelProvider combos to discover the canonical names MarginFront recognizes for cost calculation. If the user's service is in the catalog, use its canonicalName + provider in record_usage and cost auto-resolves on ingest. If not, the event still lands but cost stays null until the catalog is updated; map_model can redirect an unknown name to an existing entry but cannot create new rates.
+Parameters:
+  - provider (string, optional): filter by lowercase provider name (e.g. "google", "openai", "anthropic", "tool")
+  - serviceType (string, optional): filter by category (e.g. "LLM", "Embeddings", "Web Search", "Agent Built-in")
+  - isApi (boolean, optional): filter to non-LLM API entries only (true) or LLM-only (false). Omit for both.
+  - search (string, optional): case-insensitive search across canonicalName + displayName
+  - page (number, optional, default: 1)
+  - limit (number, optional, 1-100, default: 50)
+- Returns: paginated list of catalog entries with canonicalName, provider, serviceType, inputCost, outputCost, costUnit, contextWindow, source, isApi.
+- Use case examples:
+  - "What Google services does MarginFront know about?" → provider: "google"
+  - "Show me every non-LLM API in the catalog." → isApi: true
+  - "Find any catalog entry containing 'gpt-4o'." → search: "gpt-4o"
+
+#### list_agents
+List your agents with optional search and filters. Each row's id is the agentId that create_signal, create_pricing_strategy, link_plan_to_agent, and create_subscription need. Use this to look up agents that already exist, including ones auto-created by recording usage (their agentCode is the code the first event used).
+- Parameters:
+  - search (string, optional): search across name, description, and agent code
+  - agentCode (string, optional): filter by agent code (case-insensitive partial match)
+  - isActive (boolean, optional): filter by active status
+  - page (number, optional, default: 1)
+  - limit (number, optional, 1-100, default: 10)
+- Returns: paginated list of agents with id, name, agentCode, isActive, and counts of signals, linked plans, and subscriptions
+
+#### list_signals
+List signals with optional filters. Each row's id is the signalId that create_pricing_strategy needs for usage charge types and credit pools. Use this to look up signals that already exist, including ones auto-created by recording usage (their name is the signalName the first event used).
+- Parameters:
+  - agentId (string, optional): filter to one agent's signals (UUID from list_agents)
+  - name (string, optional): filter by signal name (case-insensitive partial match)
+  - type (string, optional): "usage" or "volume"
+  - page (number, optional, default: 1)
+  - limit (number, optional, 1-100, default: 10)
+- Returns: paginated list of signals with id, name, shortName, agentId, and type
+
+### Write Tools
+
+#### record_usage
+Record a single usage event. Accepts two mutually exclusive shapes:
+  (A) Single-service: top-level model + modelProvider + volume. The 90% case.
+  (B) Multi-service: services[] array, one entry per underlying service contributing to the same business outcome.
+Send shape (A) OR shape (B), never both, never neither. Mixing returns a clear English error before the request leaves.
+
+- Parameters (always required):
+  - customerExternalId (string, required)
+  - agentCode (string, required)
+  - signalName (string, required)
+
+- Parameters (single-service shape, required when no services[]):
+  - model (string, required when no services[])
+  - modelProvider (string, required when no services[])
+  - inputTokens (number, optional): for LLM events
+  - outputTokens (number, optional): for LLM events
+  - quantity (number, optional, default: 1): for non-LLM or variable-quantity events
+
+- Parameters (multi-service shape, required when no top-level model):
+  - services (array, required when no top-level model, min 1 entry): each entry has model + modelProvider + per-service volume (inputTokens/outputTokens for LLM, quantity for non-LLM)
+  - quantity (number, optional, default: 1): in multi-service this is signal-level (e.g. 1 for one report)
+
+- Parameters (always optional):
+  - usageDate (string, optional): ISO 8601, defaults to now
+  - metadata (object, optional): free-form key-value pairs
+
+- Returns:
+  - Single-service: event ID, calculated cost, timestamp
+  - Multi-service: parent event ID, totalCostUsd (sum across services), services[] array with per-service cost + status, timestamp
+- Note: for LLM events pass tokens; for non-LLM (SMS, scraping) pass quantity. Use multi-service when one outcome (one report, one transaction) was backed by multiple underlying services (e.g. Claude tokens + Google Maps queries) - track it as ONE event, not two.
+
+#### record_usage_batch
+Record multiple usage events at once (1-100 per request).
+- Parameters:
+  - records (array, required, 1-100 items): each item has same fields as record_usage. Each record independently picks single-service or multi-service shape (mixing shapes WITHIN a record is still rejected).
+- Returns: batch result with success/failure counts and per-record status. Multi-service failed records include a servicesStatus[] array showing which specific service in the entry needs fixing.
+- Note: can mix LLM, non-LLM, single-service, and multi-service events in the same batch.
+
+#### create_customer
+Create a new customer in MarginFront.
+- Parameters:
+  - name (string, required): customer's display name
+  - externalId (string, optional): your system's ID for this customer
+  - email (string, optional)
+  - phone (string, optional)
+- Returns: created customer with MarginFront UUID
+- Note: set externalId so you can reference it in usage events
+
+#### create_agent
+Create an agent: the billable thing you meter (a chatbot, a report generator, a pipeline). Pricing plans link to agents and subscriptions bill per agent, so this comes first when setting up from zero.
+- Parameters:
+  - name (string, required): agent display name, e.g. "Customer Support Agent"
+  - agentCode (string, required): unique code for this agent, e.g. "cs-bot". The same value your product sends as agentCode when recording usage.
+  - description (string, optional): what this agent does
+  - isActive (boolean, optional, default: true)
+  - context (object, optional): custom key-value pairs stored with the agent
+- Returns: created agent with MarginFront UUID (the agentId that create_signal, pricing, and subscriptions need)
+- Note: if the code already exists, the API returns a conflict (recording usage auto-creates agents, so this is common). Don't retry; call list_agents to fetch the existing agent's UUID and keep going.
+- Required role: Developer (Admin/Owner also work)
+
+#### create_signal
+Create a signal: the billing unit an agent tracks, e.g. "messages" or "reports-generated". The signal name is the line item the customer reads on their invoice, so the signal-naming rule above applies in full. Create the signal before pricing: usage and credit-pool strategies need its UUID up front, and this tool returns it.
+- Parameters:
+  - name (string, required): the billing unit on the customer's invoice. Match the user's language ("per page" → "pages"). Never internal-sounding names like "llm_call".
+  - agentId (string, required): the agent's UUID (from create_agent or list_agents)
+  - shortName (string, optional): short name, e.g. "api_calls"
+  - type (string, optional): "usage" = billed per result (OUTCOME), "volume" = billed per attempt (ACTIVITY)
+- Returns: created signal with MarginFront UUID (the signalId that create_pricing_strategy needs)
+- Note: if the name already exists on that agent (recording usage auto-creates signals), the API returns a conflict. Call list_signals to fetch the existing signal's UUID instead of retrying.
+- Required role: Developer (Admin/Owner also work)
+
+#### generate_invoice
+Build a draft invoice from a subscription's tracked usage. Reads the billing period's usage events, applies the subscription's pricing strategies, and writes a draft invoice with line items and totals — ready to preview, edit, or send.
+- Parameters:
+  - customerId (string, required): customer MarginFront UUID (NOT the external ID)
+  - subscriptionId (string, required): subscription MarginFront UUID
+  - billingPeriodStart (string, optional): ISO 8601 date; defaults to the subscription's current billing period start
+  - billingPeriodEnd (string, optional): ISO 8601 date; defaults to the subscription's current billing period end
+- Returns: full draft invoice with line items, totals, and the invoice UUID
+- Note: invoice lands in `draft` status. Nothing is sent to the customer until status moves to `issued` (manually or via the auto-finalize step).
+
+#### send_invoice
+Email an invoice to the customer with a Stripe Checkout pay-now button.
+- Parameters:
+  - invoiceId (string, required): the invoice's MarginFront UUID
+  - recipientEmail (string, optional): override the destination address (defaults to the customer's stored email)
+  - subject (string, optional): custom subject line
+  - message (string, optional): note shown in a callout above the invoice details
+- Returns: { success, emailId (Resend message ID), recipientEmail }
+- Side effect: if the invoice is still a draft, sending auto-finalizes it to status "issued"
+- After the customer pays the Stripe Checkout link, the invoice flips to "paid" via webhook automatically (no follow-up call needed)
+
+### Diagnostic Tools
+
+#### get_needs_attention
+List usage events where the model+provider combination isn't in the pricing table. These events are saved with cost = null.
+- Parameters:
+  - startDate (string, optional, default: 30 days ago)
+  - endDate (string, optional, default: now)
+- Returns: groups by model and provider with event counts
+- Important: events ARE saved (not lost). Use map_model to fix, then costs backfill automatically. Do NOT re-send the events.
+
+#### get_missing_volume
+List usage events that landed in the MISSING_VOLUME_DATA state: events sent without tokens (for LLM calls) or quantity (for non-LLM). The platform stored them anyway, waiting for the volume data.
+- Parameters:
+  - startDate (string, optional): only include events with usageDate after this (ISO 8601, default: 30 days ago)
+  - endDate (string, optional): only include events with usageDate before this (ISO 8601, default: now)
+- Returns: groups by model and provider with event counts and costUnit, so you know whether to provide tokens or quantity
+- Important: these events ARE saved. Do NOT re-send them. Use fill_volume to supply the missing numbers.
+
+#### fill_volume
+Supply the missing volume data for MISSING_VOLUME_DATA events, in bulk. You name the model + provider (the same grouping get_missing_volume returns) and the volume to apply; ALL matching incomplete events are updated in one operation, cost recalculates, and they flip to PROCESSED.
+- Parameters:
+  - sourceModel (string, required): the model name whose events are missing volume, e.g. "gpt-4o"
+  - sourceProvider (string, required): the provider, e.g. "openai"
+  - inputTokens (number, optional): input (prompt) tokens to apply (required for LLM models)
+  - outputTokens (number, optional): output (completion) tokens to apply (required for LLM models)
+  - quantity (number, optional): billing units to apply (required for non-LLM services)
+- Returns: a summary with the model, provider, volume applied, and how many events were backfilled
+- Note: the same volume numbers apply to EVERY matching incomplete event for that model + provider. Future events still need correct volume fields in the request itself.
+
+### Destructive Tool
+
+#### map_model
+Map an unknown model to a known one in the pricing table and backfill costs for all affected events. Creates a permanent mapping. Future events with the same source model auto-resolve.
+- Parameters (identify target by ID or by model+provider pair):
+  - sourceModel (string, required): unknown model name to map FROM
+  - sourceProvider (string, required): unknown provider to map FROM
+  - targetPricingId (string, optional): UUID of target pricing row to map TO
+  - targetModel (string, optional): known model name to map TO (use with targetProvider)
+  - targetProvider (string, optional): known provider to map TO (use with targetModel)
+- Returns: confirmation with number of events backfilled and mapping ID
+- Idempotent: yes (safe to retry)
+- Note: this creates a permanent org-scoped mapping. It does NOT modify the global pricing table.
+
+### Pricing & Subscription Tools
+
+#### create_pricing_plan
+Create a new pricing plan container.
+- Parameters:
+  - name (string, required): plan name, e.g. "Pro Plan"
+  - description (string, optional)
+  - agentId (string, optional): link to agent on creation
+  - isActive (boolean, optional, default: true)
+- Returns: created plan with ID
+
+#### list_pricing_plans
+List pricing plans for the organization.
+- Parameters:
+  - agentId (string, optional): filter by agent MarginFront UUID (from the dashboard or /agents endpoint)
+  - isActive (boolean, optional)
+  - includeStrategies (boolean, optional): include nested pricing strategies
+  - page, limit (optional)
+- Returns: paginated list of plans
+
+#### get_pricing_plan
+Get a single pricing plan with linked agents and strategies.
+- Parameters:
+  - planId (string, required)
+- Returns: full plan details
+
+#### create_pricing_strategy
+Add a pricing strategy (actual pricing rules) to a plan.
+- Parameters:
+  - planId (string, required): plan to add strategy to
+  - name (string, required): strategy name
+  - agentId (string, required): agent this strategy belongs to
+  - chargeType (string, required): "usage", "recurring", "onetime", or "seat_based"
+  - pricingModel (string, optional): "flat", "graduated", "volume", or "credit_pool"
+  - signalId (string, optional): required if chargeType is "usage"
+  - rate (number, optional): flat rate per unit
+  - tiers (array, optional): tier config: [{ lower, upper, rate }]
+  - creditPool (object, optional): the credit-pool shortcut, e.g. {poolSize: 5000, poolPrice: 99, overageRate: 0.03} for "5,000 tasks for $99 a cycle, then 3 cents each". Compiled into tiers server-side, so send this OR tiers, never both. Only valid when pricingModel is "credit_pool". Nothing stops when the pool empties; the overage keeps billing.
+  - billingFrequency (string, optional): "monthly" or "yearly"
+  - minimumCommitment (number, optional): not allowed on credit_pool strategies (the pool fee already is the minimum)
+  - active (boolean, optional, default: true)
+- Credit pool tiers (if built by hand): tiers[0] = pool (rate is the flat pool fee), tiers[1] = overage (rate is per-unit). Prefer the creditPool shortcut; that asymmetry is easy to get backwards.
+- Validation: one active credit pool per plan; a partial creditPool block is rejected with the missing fields named.
+- Returns: created strategy
+
+#### list_pricing_strategies
+List pricing strategies for a specific plan.
+- Parameters:
+  - planId (string, required)
+  - chargeType, pricingModel (optional filters)
+  - page, limit (optional)
+- Returns: paginated list of strategies with signal details. Credit-pool strategies also carry a derived creditPool field with the same three numbers you create them with; it's null when the stored tiers aren't a clean pool shape.
+
+#### link_plan_to_agent
+Link a pricing plan to an agent (many-to-many). Required before creating subscriptions.
+- Parameters:
+  - planId (string, required)
+  - agentId (string, required)
+- Returns: link confirmation
+
+#### create_subscription
+Create a subscription tying a customer to an agent through a pricing plan.
+- Parameters:
+  - name (string, required): subscription name
+  - planId (string, required): pricing plan UUID
+  - agentId (string, required): agent UUID
+  - customerId (string, required): customer UUID
+  - startDate (string, required): ISO 8601
+  - billingCycle (string, optional): "monthly", "yearly", or "custom"
+  - billingModel (string, optional): "subscription", "usage", or "hybrid"
+  - seatsCount (number, optional): for seat_based pricing
+- Returns: created subscription with billing period dates
+
+### Portal Session Tools
+
+#### create_portal_session
+Mint a one-time portal link for a customer: a URL to a portal page on your MarginFront dashboard where the customer sees their own billing. The URL is good for one hour and stops working the moment the customer opens it.
+- Parameters (identify the customer one of two ways):
+  - customerId (string, optional): MarginFront's internal customer UUID
+  - customerExternalId (string, optional): your system's customer ID
+  - returnUrl (string, optional): stored on the session for your records (the portal does NOT auto-redirect; informational)
+  - features (array of strings, optional): subset of ["invoices", "subscriptions", "usage", "profile"]. The portal always renders all four, so this is informational too.
+- Returns: session ID, the URL to send the customer, the token, customer details, and the expiry timestamp
+
+#### get_portal_session
+Look up one portal session by ID. Use to check whether a link was opened or has expired. Does NOT return the token or url; those only appear at creation.
+- Parameters:
+  - sessionId (string, required): the portal session ID from create_portal_session
+- Returns: session metadata (customer, expiry, redeem status)
+
+#### list_portal_sessions
+List portal sessions the organization has created. Useful for audit or support. Tokens are intentionally omitted.
+- Parameters:
+  - customerId (string, optional): filter to one customer's sessions (internal UUID)
+  - limit (number, optional, 1-100, default: 10)
+  - includeExpired (boolean, optional, default: false): true to include expired or already-used sessions
+- Returns: a list of session metadata records
+
+#### revoke_portal_session
+Immediately invalidate a portal session. Use if a link went to the wrong customer or access needs to end early. Hard delete: the session row is removed.
+- Parameters:
+  - sessionId (string, required): the portal session ID to revoke
+- Returns: confirmation that the session was revoked
+
+### Spend Control Tools
+
+These read and manage spend caps: the limits the organization sets on its OWN AI spend (Claude Code / Codex), never customer billing. `get_spend_controls` works with every key role, including an ingest-only key, because the on-device brake reads it with the same key it sends usage with. `get_internal_spend_breakdown` needs owner, admin, or finance. The three writes need a key belonging to an owner or finance user. Any key without the role gets a clear 403 naming the required role.
+
+#### get_spend_controls
+Read the internal code-spend caps in one call: the cap policies (each with its plain sentence), spend-so-far for a period, and coverage ("N of M teammates armed"). spentUsd is null when there's no priced usage yet (honest absence, not $0).
+- Parameters:
+  - period (string, optional, default: "month"): which window the spend total covers: "day", "week", or "month"
+  - customerExternalId (string, optional): a teammate's customerExternalId (their email) to also get that teammate's spend
+- Returns: the caps (each with its sentence), the spend read-back for the period, and the coverage counts
+
+#### get_internal_spend_breakdown
+Break down internal coding-agent spend for the current period, grouped by git repo or branch. Branch spend is the closest stand-in for cost per pull request. Events outside a tracked repo appear in the noMetadata bucket, and coveragePercent says how much of the activity carries repo/branch metadata. spentUsd is null when there's no priced usage (honest absence, not $0). There is no "pr" grouping on purpose: the pipeline records repo/branch/commit, not PR numbers. Required role: owner, admin, or finance. A developer or ingest-only key gets a 403 here even though it can read `get_spend_controls`.
+- Parameters:
+  - period (string, required): "day", "week", or "month". The server computes the current window in UTC.
+  - dimension (string, required): "repo" (one row per repository) or "branch" (one row per repo#branch, so a branch named main in two repos stays two rows)
+- Returns: totals plus rows with spentUsd, event counts, and unpriced counts, alongside noMetadata and coveragePercent
+
+#### create_spend_cap
+Create a spend cap covering all AI tools. A developer cap can never be set higher than the whole-team ceiling; the server rejects the attempt with a plain message. Requires an owner or finance key.
+- Parameters:
+  - scope (string, required): "org" (a whole-team ceiling) or "dev" (one developer)
+  - scopeValue (string, required for dev): the developer's customerExternalId (their email). Omit for "org".
+  - amountUsd (number, required): cap amount in US dollars, e.g. 200
+  - period (string, required): reset cadence: "day", "week", or "month". Windows roll at UTC.
+  - mode (string, required): "track" (watch and alert, block nothing) or "enforce" (armed machines stop tool calls at the cap)
+  - coolOffHours (number, optional): hours to wait after a cap trips before the device re-checks
+  - alertThresholds (array of numbers, optional): alert ladder as whole percents of the cap. Default [50, 80, 100].
+- Returns: the new cap's plain sentence first (e.g. "Cap created: Stop AI spend at $200 for alice@acme.example per week"), then the full cap details
+
+#### update_spend_cap
+Adjust an existing cap's amount, period, mode, cool-off, or alert ladder. A cap's identity (who it governs) can't be changed: delete and recreate instead. Requires an owner or finance key.
+- Parameters:
+  - id (string, required): the cap's ID (from get_spend_controls)
+  - amountUsd (number, optional): new cap amount in US dollars
+  - period (string, optional): new reset cadence
+  - mode (string, optional): new enforcement posture
+  - coolOffHours (number, optional): new cool-off window in hours. Send 0 to clear.
+  - alertThresholds (array of numbers, optional): new alert ladder as whole percents of the cap
+- Returns: the updated cap's plain sentence first, then the full cap details
+
+#### delete_spend_cap
+Delete a cap. Deleting a whole-team ceiling is refused if it would leave a developer cap with nothing above it (the server says so plainly). Requires an owner or finance key.
+- Parameters:
+  - id (string, required): the cap's ID (from get_spend_controls)
+- Returns: the removed cap's plain sentence, so you can confirm what was deleted
+
+### Customer Alert Tools
+
+Per-customer tripwires on cost or revenue ("email me when Acme's cost passes $500 this month"). All four need owner, admin, or finance: a watch exposes one customer's money, so unlike the spend-control reads there is no open-read posture here. An ingest-only key gets a 403 on all four.
+
+#### get_customer_alerts
+List the organization's customer watches. Each row carries the watched customer (name + internal id), the metric ("cost" = what the customer costs us, "revenue" = what they owe us), the dollar threshold, the window, and who the alert emails. Required role: owner, admin, or finance.
+- Parameters: none
+- Returns: one row per watch with id, customer, metric, thresholdUsd, windowMode, custom range dates when set, and notifyEmail
+
+#### create_customer_alert
+Create a customer watch: email a named org member when this customer's cost or revenue passes a dollar threshold for the chosen window. notifyEmail is REQUIRED because an API key has no person behind it. Internal coding-spend (CCC) accounts are refused as targets: use the spend-cap tools for coding-agent spend. Creating sends the recipient a confirmation email. Required role: owner, admin, or finance.
+- Parameters:
+  - customerId (string, required): the customer's INTERNAL id (UUID, from list_customers), never your own customerExternalId
+  - metric (string, required): "cost" or "revenue"
+  - thresholdUsd (number, required): the tripwire in US dollars, e.g. 500
+  - windowMode (string, required): "month" (current UTC calendar month, re-arms monthly), "rolling" (last 30 days, fires once per crossing), or "custom" (fixed range, fires at most once, expires at range end)
+  - customStartDate (string, custom mode only): range start, ISO 8601
+  - customEndDate (string, custom mode only): range end, ISO 8601
+  - notifyEmail (string, required): a current org member with a money role (owner, admin, or finance). The server rejects anyone else in plain English.
+- Returns: the new watch. A duplicate watch answers with a friendly 409 rather than a second row.
+
+#### update_customer_alert
+Adjust an existing watch's metric, threshold, or window. The watched customer and the recipient are fixed at create: change those by deleting and recreating. A fired custom/month window never re-fires for that same window even after an edit (the dedup ledger is permanent by design). Required role: owner, admin, or finance.
+- Parameters:
+  - id (string, required): the watch's id (from get_customer_alerts)
+  - metric (string, optional): new metric, "cost" or "revenue"
+  - thresholdUsd (number, optional): new tripwire in US dollars
+  - windowMode (string, optional): new window mode. Flipping to "custom" needs both dates in the same call.
+  - customStartDate (string, custom mode only): range start, ISO 8601
+  - customEndDate (string, custom mode only): range end, ISO 8601
+- Returns: the updated watch. An edit that would collide with an existing watch answers with the same friendly 409 the create path uses.
+
+#### delete_customer_alert
+Delete a customer watch. Its in-app notification history goes with it (the feed rows cascade). Required role: owner, admin, or finance.
+- Parameters:
+  - id (string, required): the watch's id (from get_customer_alerts)
+- Returns: confirmation that the watch was removed
+
+### Credit Pool Tools
+
+#### get_credit_balances
+Read your customers' credit-pool countdowns: pool size, units used this period, units left, and units already billing as overage. Use when someone asks "who is running out of credits?", "how many units does this customer have left?", or "who is in overage this month?". Two numbers are deliberately different and both are true: remainingUnits counts manual top-ups, overageInProgressUnits is the invoice's own math (usage past the pool size, top-up blind), so a topped-up pool can show units left AND overage at once. The invoice always matches overageInProgressUnits. NOTHING STOPS AT ZERO: the pool is a meter, not a breaker, so a customer past their pool keeps working and the overage keeps billing. Subscriptions whose plan sells no credit pool are absent, never listed with a zero. Read-only. Every key role except ingest-only and legal can call it; ingest-only and legal keys get a 403.
+- Parameters (all optional):
+  - subscriptionId (string, optional): one subscription's balance instead of the whole list
+  - customerId (string, optional): only pools belonging to this customer
+  - agentId (string, optional): only pools on subscriptions for this agent
+  - belowPercent (number, optional): only pools with this percent of the pool (or less) still left. 20 finds the ones worth a heads-up; 0 finds the ones already past zero.
+- Returns: one row per credit-pool subscription (emptiest first) with customer, plan, poolSizeUnits, consumedUnits, remainingUnits, overageInProgressUnits, remainingPercent, overageRatePerUnit, period dates, and alertsPaused
+- Note: adding units and pausing alert emails happen in the dashboard or via the REST API (POST /v1/subscriptions/:id/credit-topup and POST /v1/subscriptions/:id/credit-alerts-pause, owner/admin/finance); they are not MCP tools. The server serves its own endpoint reference at /api-docs.
+
+### Matter Tools
+
+A matter is the job AI work is billed against: a case for a firm, a project or ticket for anyone else. Usage events attach to a matter three ways, strongest first: a manual assignment (assign_event_to_matter), the event's own metadata.matterId tag at ingest, or a routing rule. What nothing claims sits visibly in Unassigned. Every tool in this section requires a key role of legal, finance, admin, or owner.
+
+#### list_matters
+The org's matters with each one's all-time actual AI cost and event count. Costs are sums of real event costs, never estimates; eventsMissingCost counts events whose cost is unresolved and adding 0, so nonzero means the true cost is higher.
+- Parameters: page (optional, default 1), limit (optional, default 10, max 100)
+- Returns: results[] (id, matterNumber, name, clientName, status, actualCost, eventCount, eventsMissingCost), page, limit, totalPages, totalResults
+
+#### get_matter
+One matter with all-time cost, event count, and its 100 most recent events (eventsCap states the cap; export_matter_audit carries the full record).
+- Parameters: matterId (required)
+- Returns: matter, actualCost, eventCount, eventsMissingCost, events[], eventsCap
+
+#### create_matter
+Create a matter. matterNumber is your own identifier for the job, unique per org; events arriving with metadata.matterId equal to it (trimmed, exact) attach automatically.
+- Parameters: matterNumber (required), name (required), clientName (required), status (optional, open|closed), responsibleUserId (optional)
+- Returns: the created matter
+- Errors: 409 if the matterNumber already exists in the org
+
+#### update_matter
+Update a matter; only provided fields change. Closing a matter labels it, it stops nothing at ingest.
+- Parameters: matterId (required), then any of matterNumber, name, clientName, status, responsibleUserId (null clears it)
+- Returns: the updated matter
+
+#### delete_matter
+Delete a matter. Its events survive and return to Unassigned (the response counts them); the matter's routing rules are deleted with it.
+- Parameters: matterId (required)
+- Returns: deleted, eventsReturnedToUnassigned, routingRulesDeleted
+
+#### list_unassigned_events
+Events no matter claimed. totalResults is the true all-time unassigned count and totalCost sums the whole set, whatever page you fetch.
+- Parameters: page (optional), limit (optional)
+- Returns: results[] (event rows with agent, signal, quantity, usageCost, source), page, limit, totalPages, totalResults, totalCost, eventsMissingCost
+
+#### assign_event_to_matter
+Manually put one event on a matter, or pull it off (matterId null). Manual wins over tag and rule, and a manual unassignment is never re-swept by apply_matter_rules.
+- Parameters: eventId (required), matterId (required, nullable)
+- Returns: assigned, eventId, matterId, source ("manual")
+
+#### list_matter_rules
+Routing rules in EVALUATION order (priority ascending, ties by creation): the order shown is the order that runs.
+- Parameters: page (optional), limit (optional)
+- Returns: results[] (id, matterId, matterNumber, matterName, priority, agentCode, customerExternalId, signalPattern), page, limit, totalPages, totalResults
+
+#### upsert_matter_rule
+Create a rule (no ruleId) or update one (with ruleId). A rule matches when EVERY matcher it sets matches: agentCode exact, customerExternalId exact, signalPattern case-insensitive substring. At least one matcher required; lower priority runs first; on update, null clears a matcher.
+- Parameters: ruleId (optional), matterId (required on create), priority (optional, default 100), agentCode, customerExternalId, signalPattern
+- Returns: the rule with its matter's number and name
+
+#### delete_matter_rule
+Delete a routing rule. Events it already assigned keep their matter; only future matching stops.
+- Parameters: ruleId (required)
+- Returns: deleted
+
+#### apply_matter_rules
+Sweep Unassigned through the rules in priority order. Touches ONLY events with no matter and no attribution history: never overrides a tag, an earlier rule, or a manual decision.
+- Parameters: none
+- Returns: assigned (count of events assigned)
+
+#### export_matter_audit
+The audit record you hand a client or an auditor: actual per-matter AI cost for a window. summary (default) = one row per matter + an Unassigned row + org totals, reconciling exactly with the dashboard's CSV export for the same window; detail adds one row per event with agent, signal, models, cost, and attribution source. Unresolved costs count 0 in sums and are flagged in eventsMissingCost, never invented.
+- Parameters: start (optional, YYYY-MM-DD or ISO; default 30 days back), end (optional; default now, capped at now), format (optional, summary|detail), matterId (optional slice; that view has no Unassigned row and no org totals)
+- Returns: periodStart, periodEnd, summary[], totalCost, totalEvents, eventsMissingCost, and rows[] when format=detail
+
+## Common Workflows
+
+### 1. Verify Connection
+Prompt: "Verify my MarginFront connection"
+Tools: verify
+Expected: organization name and "verified: true"
+
+### 2. Explore Customers
+Prompt: "Show me my MarginFront customers"
+Tools: list_customers → get_customer (for details on a specific one)
+
+### 3. Record a Single LLM Event
+Prompt: "Record a usage event: customer acme-001 used the cs-bot agent, signal messages, model gpt-4o from openai, 500 input tokens, 120 output tokens"
+Tools: record_usage
+Fields: customerExternalId=acme-001, agentCode=cs-bot, signalName=messages, model=gpt-4o, modelProvider=openai, inputTokens=500, outputTokens=120
+
+### 4. Record a Non-LLM Event
+Prompt: "Record an event: customer acme-001 used cs-bot, signal sms-sent, model sms-send from twilio, quantity 1"
+Tools: record_usage
+Fields: customerExternalId=acme-001, agentCode=cs-bot, signalName=sms-sent, model=sms-send, modelProvider=twilio, quantity=1
+
+### 5. Record a Batch of Events
+Prompt: "Record 3 events for customer acme-001 on cs-bot: 2 messages on gpt-4o and 1 SMS on twilio"
+Tools: record_usage_batch
+
+### 6. Check What Needs Attention
+Prompt: "Are there any MarginFront events with unknown models?"
+Tools: get_needs_attention
+Follow-up: if results found, use map_model to create a mapping
+
+### 7. Fix Unknown Models
+Prompt: "Map the model 'gpt-4o-2024-08-06' from 'openai' to the known model 'gpt-4o' from 'openai'"
+Tools: map_model
+Result: creates permanent mapping, backfills costs on all affected events
+
+### 8. Get Usage Analytics
+Prompt: "Show me MarginFront usage analytics for this month"
+Tools: get_usage_analytics with startDate=2026-04-01 and endDate=2026-04-13
+
+### 9. Check Invoices
+Prompt: "Show me all pending invoices"
+Tools: list_invoices with status=pending
+
+### 10. First-event setup (via MCP prompts)
+Step 1: "Record a test event for customer acme-001 on agent cs-bot, signal messages, model gpt-4o from openai, 100 input tokens, 50 output tokens"
+Step 2: "Show me the usage analytics for today"
+
+That is the entire setup for cost tracking. The customer, agent, and signal are auto-provisioned on Step 1 with `name` defaulting to the externalId / agentCode / signalName values. The user can rename them in the dashboard if they want display-friendly labels.
+
+Adding revenue tracking is a separate setup: create a pricing plan with `create_pricing_plan`, add pricing strategies with `create_pricing_strategy`, link the plan to the agent with `link_plan_to_agent`, then create a subscription tying a customer to that plan with `create_subscription`. None of those auto-provision.
+
+### 11. Customer revenue question
+Prompt: "What revenue did we get from customer acme-001 in April?"
+Tools: list_customers with search=acme-001 (to get the UUID), then get_customer_revenue with customerId=<that UUID>, startDate=2026-04-01, endDate=2026-04-30
+Result: canonical revenue, cost, margin, and marginPercent for that customer over the window, plus a per-strategy-type breakdown.
+
+### 12. Cost breakdown question
+Prompt: "What did we spend on provider costs this month?"
+Tools: get_cost_metrics with startDate=2026-04-01 and endDate=2026-04-30
+Result: total cost plus breakdowns by agent, customer, signal, day, plan, and model. Add includePriorWindow=true to compare against the prior period.
+
+### 13. MRR question
+Prompt: "What's our MRR?"
+Tools: get_mrr (defaults to variant=canonical, which is MRR1, contracted monthly recurring revenue of active subscriptions, today)
+Follow-up: for trajectory say "give me all three MRR variants" which runs get_mrr with variant=all (canonical, runRate, committed).
+
+### 14. Credit-pool check
+Prompt: "Who's running out of credits?" or "How many units does Acme have left?"
+Tools: get_credit_balances (add belowPercent=20 for just the pools worth a heads-up, or subscriptionId for one customer's pool)
+Result: countdown rows, emptiest first. Remember: nothing stops at zero; a pool past empty keeps working and bills overage.
+
+## Error Types
+
+- **Authentication error (401)**: API key is invalid or expired. Check MF_API_SECRET_KEY env var.
+- **Insufficient key role (403)**: The key is valid but its role can't do this. The body carries `code: "insufficient_key_role"` and the role the key holds. Most often an ingest-only key calling a tool other than the four it can call (`record_usage`, `record_usage_batch`, `verify`, `get_spend_controls`), or a legal key reaching outside the Matter tools + that same ingest surface. Call `verify` to confirm the org, then have an owner or admin mint a key with the role you need (in the dashboard under Build, then API keys). Retrying with the same key never works.
+- **Not found (404)**: The resource (customer, invoice, etc.) doesn't exist. Check the UUID.
+- **Validation error (400)**: A required field is missing or invalid. The error message says which field.
+- **Signal not found (404)**: A signal ID passed to a signal or pricing tool doesn't exist. Look it up with list_signals. `record_usage` never returns this: a new signalName creates the signal.
+- **NEEDS_COST_BACKFILL**: The model+provider wasn't recognized. Event IS saved with cost=null. Use get_needs_attention then map_model to fix.
+- **Rate limit (429)**: Too many requests. Wait and retry.
+
+Success responses return data objects. Failures return `{ error: "message" }`.
+
+## Important: Never Break the Core Product
+
+MarginFront instrumentation must never prevent the host application from running. If MarginFront is unreachable or returns an error, the AI agent must continue functioning. When recording events via MCP:
+- If record_usage fails, log the error and move on
+- Events with unrecognized models are saved with cost=null (not dropped)
+- Use get_needs_attention to find and fix these later

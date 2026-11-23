@@ -1,0 +1,70 @@
+{
+  "resourceMetrics": [
+    {
+      "scopeMetrics": [
+        {
+          "metrics": [
+            {
+              "name": "claude_code.token.usage",
+              "sum": {
+                "dataPoints": [
+                  {
+                    "attributes": [
+                      { "key": "user.email", "value": { "stringValue": "login@example.com" } },
+                      { "key": "model", "value": { "stringValue": "claude-opus-4-8[1m]" } },
+                      { "key": "session.id", "value": { "stringValue": "sess-preview-001" } },
+                      { "key": "type", "value": { "stringValue": "input" } }
+                    ],
+                    "asDouble": 1200
+                  },
+                  {
+                    "attributes": [
+                      { "key": "user.email", "value": { "stringValue": "login@example.com" } },
+                      { "key": "model", "value": { "stringValue": "claude-opus-4-8[1m]" } },
+                      { "key": "session.id", "value": { "stringValue": "sess-preview-001" } },
+                      { "key": "type", "value": { "stringValue": "output" } }
+                    ],
+                    "asDouble": 340
+                  },
+                  {
+                    "attributes": [
+                      { "key": "user.email", "value": { "stringValue": "login@example.com" } },
+                      { "key": "model", "value": { "stringValue": "claude-opus-4-8[1m]" } },
+                      { "key": "session.id", "value": { "stringValue": "sess-preview-001" } },
+                      { "key": "type", "value": { "stringValue": "cacheRead" } }
+                    ],
+                    "asDouble": 5000
+                  },
+                  {
+                    "attributes": [
+                      { "key": "user.email", "value": { "stringValue": "login@example.com" } },
+                      { "key": "model", "value": { "stringValue": "claude-opus-4-8[1m]" } },
+                      { "key": "session.id", "value": { "stringValue": "sess-preview-001" } },
+                      { "key": "type", "value": { "stringValue": "cacheCreation" } }
+                    ],
+                    "asDouble": 800
+                  }
+                ]
+              }
+            },
+            {
+              "name": "claude_code.cost.usage",
+              "sum": {
+                "dataPoints": [
+                  {
+                    "attributes": [
+                      { "key": "user.email", "value": { "stringValue": "login@example.com" } },
+                      { "key": "model", "value": { "stringValue": "claude-opus-4-8[1m]" } },
+                      { "key": "session.id", "value": { "stringValue": "sess-preview-001" } }
+                    ],
+                    "asDouble": 0.0123
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

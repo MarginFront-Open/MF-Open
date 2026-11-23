@@ -1,0 +1,13 @@
+/* MarginFront React Components - Bundled Styles */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Component-specific custom styles */
+.marginfront-invoice-list,
+.marginfront-invoice-viewer,
+.marginfront-subscription-card,
+.marginfront-usage-chart,
+.marginfront-pricing-table {
+  font-family: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}

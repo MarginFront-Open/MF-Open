@@ -1,0 +1,31 @@
+import { readFileSync } from 'fs'
+import { join } from 'path'
+
+/**
+ * RBAC posture for the /mfiq route, source-asserted (this unit suite has no
+ * DB or session; the real 403-redirect behavior needs a browser). Same
+ * pattern as the FinOps route's page.test.ts. To make the route ungated,
+ * flip these assertions with the one-line route change.
+ */
+describe('MF IQ route — RBAC gate', () => {
+  const src = readFileSync(join(__dirname, '..', 'page.tsx'), 'utf8')
+
+  it('calls requireRouteRoles(MANAGE_MONEY_ROLES) before rendering <Mfiq />', () => {
+    const gateIndex = src.indexOf('requireRouteRoles(MANAGE_MONEY_ROLES)')
+    const renderIndex = src.indexOf('<Mfiq')
+    expect(gateIndex).toBeGreaterThan(-1)
+    expect(renderIndex).toBeGreaterThan(-1)
+    expect(gateIndex).toBeLessThan(renderIndex)
+  })
+
+  it('imports MANAGE_MONEY_ROLES from @marginfront/db and requireRouteRoles from the shared helper', () => {
+    expect(src).toMatch(/MANAGE_MONEY_ROLES/)
+    expect(src).toMatch(/from ['"]@marginfront\/db['"]/)
+    expect(src).toMatch(/from ['"]@\/app\/lib\/require-route-roles['"]/)
+  })
+
+  it('stays a thin server wrapper — no mf-* classes (Tailwind scans src/** only)', () => {
+    expect(src).not.toMatch(/\bmf-/)
+    expect(src).not.toMatch(/'use client'/)
+  })
+})

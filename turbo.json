@@ -1,0 +1,73 @@
+{
+  "$schema": "https://turborepo.org/schema.json",
+  "globalDependencies": ["**/.env", "**/.env.local"],
+  "globalEnv": ["DATABASE_URL", "DATABASE_URL_UNPOOLED", "NODE_ENV"],
+  "tasks": {
+    "db:generate": {
+      "cache": false,
+      "outputs": ["node_modules/.prisma/**", ".prisma/**"]
+    },
+    "db:pull": {
+      "cache": false
+    },
+    "db:studio": {
+      "cache": false,
+      "persistent": true
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"],
+      "env": [
+        "DATABASE_URL",
+        "DATABASE_URL_UNPOOLED",
+        "NEXT_PUBLIC_*",
+        "API_BASE_URL",
+        "FRONTEND_URL",
+        "PORTAL_BASE_URL",
+        "PORTAL_FALLBACK_URL",
+        "BETTER_AUTH_URL",
+        "SENTRY_ORG",
+        "SENTRY_PROJECT",
+        "SENTRY_AUTH_TOKEN"
+      ]
+    },
+    "@marginfront/db#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", "$TURBO_ROOT$/node_modules/.prisma/client/**"]
+    },
+    "dev": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "typecheck": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"],
+      "env": [
+        "DATABASE_URL",
+        "MARGINFRONT_API_URL",
+        "MARGINFRONT_ALLOW_INSECURE_HTTP",
+        "MF_TEST_BASE_URL",
+        "MF_TEST_SECRET_KEY",
+        "MF_TEST_PUBLISHABLE_KEY",
+        "MF_API_SECRET_KEY"
+      ]
+    },
+    "clean": {
+      "cache": false
+    },
+    "lint:fix": {
+      "dependsOn": ["^build"],
+      "cache": false
+    }
+  },
+  "globalPassThroughEnv": ["CI", "HOME", "USERPROFILE"]
+}
