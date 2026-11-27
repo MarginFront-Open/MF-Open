@@ -13,14 +13,17 @@ this repository and point them at your own server.
 
 ## Don't install them from npm
 
-Packages named `@marginfront/sdk`, `@marginfront/mcp` and
-`@marginfront/code-cost-clarity` exist on npm. They're deprecated, and they send your API key and usage data to
-a fixed address that this project doesn't control. Don't install them. Build
-from this repository instead.
+Nothing under `@marginfront` is published on npm. The old packages and the
+npm organization were deleted. Build from this repository instead.
 
-If you already have one installed, remove it. For the meter, run its
-`uninstall` command first, because it runs in the background after you sign
-in.
+If you installed `@marginfront/sdk`, `@marginfront/mcp` or
+`@marginfront/code-cost-clarity` from npm before they were removed, uninstall
+it. Those versions sent your API key and usage data to a fixed address that
+this project doesn't control. For the meter, run its `uninstall` command
+first, because it runs in the background after you sign in.
+
+If a package with one of these names appears on npm later, it isn't from this
+project.
 
 ## Before you build
 
