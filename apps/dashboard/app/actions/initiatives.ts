@@ -180,6 +180,11 @@ const TargetInputSchema = z
 
 const TargetsInputSchema = z.array(TargetInputSchema).max(50)
 
+// zod reads every item before applying .max(), so refuse a long list first.
+const MAX_LIST_ITEMS = 50
+const TOO_MANY_TARGETS = `A goal can have at most ${MAX_LIST_ITEMS} targets, so nothing was saved. Remove some and try again.`
+const TOO_MANY_METRICS = `This preview can measure at most ${MAX_LIST_ITEMS} metrics at once, so nothing was measured. Ask for fewer and try again.`
+
 function serializeInitiative(row: {
   id: string
   name: string
@@ -535,6 +540,10 @@ export async function setInitiativeTargets(
   }>
 ): Promise<{ success: boolean; data?: InitiativeTarget[]; error?: string }> {
   try {
+    if (Array.isArray(targets) && targets.length > MAX_LIST_ITEMS) {
+      return { success: false, error: TOO_MANY_TARGETS }
+    }
+
     const parsed = TargetsInputSchema.safeParse(targets)
     if (!parsed.success) {
       return {
@@ -646,6 +655,13 @@ export async function previewAutoBaselines(input: {
   error?: string
 }> {
   try {
+    if (
+      Array.isArray(input?.metrics) &&
+      input.metrics.length > MAX_LIST_ITEMS
+    ) {
+      return { success: false, error: TOO_MANY_METRICS }
+    }
+
     const parsed = z
       .object({
         startDate: z.string().min(1, 'Start date is required'),

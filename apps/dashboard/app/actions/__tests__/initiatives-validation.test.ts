@@ -98,6 +98,18 @@ const rowFixture = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 })
 
+/** Wraps a list so a test can prove nothing read its items. */
+function countingList<T>(items: T[]) {
+  let itemsRead = 0
+  const list = new Proxy(items, {
+    get(target, key, receiver) {
+      if (typeof key === 'string' && /^\d+$/.test(key)) itemsRead += 1
+      return Reflect.get(target, key, receiver)
+    },
+  })
+  return { list, itemsRead: () => itemsRead }
+}
+
 beforeAll(async () => {
   mod = await import('../initiatives')
 })
@@ -364,6 +376,33 @@ describe('setInitiativeTargets — target validation', () => {
     expect(targetsCreateMany).not.toHaveBeenCalled()
   })
 
+  it('refuses more than 50 targets without reading any of them', async () => {
+    const { list, itemsRead } = countingList(
+      Array.from({ length: 51 }, () => ({
+        metric: 'cost' as const,
+        targetValue: 1,
+        direction: 'lte' as const,
+      }))
+    )
+    const res = await mod.setInitiativeTargets('init-1', list)
+    expect(itemsRead()).toBe(0)
+    expect(res.success).toBe(false)
+    expect(res.error).toMatch(/at most 50 targets/)
+    expect(baMemberFindFirst).not.toHaveBeenCalled()
+    expect(targetsDeleteMany).not.toHaveBeenCalled()
+  })
+
+  it('still accepts exactly 50 targets (boundary)', async () => {
+    const targets = Array.from({ length: 50 }, () => ({
+      metric: 'cost' as const,
+      targetValue: 1,
+      direction: 'lte' as const,
+    }))
+    const res = await mod.setInitiativeTargets('init-1', targets)
+    expect(res.success).toBe(true)
+    expect(targetsCreateMany.mock.calls[0][0].data).toHaveLength(50)
+  })
+
   it('replace-all: an empty array clears targets without creating any', async () => {
     const res = await mod.setInitiativeTargets('init-1', [])
     expect(res.success).toBe(true)
@@ -573,5 +612,29 @@ describe('previewAutoBaselines — the dialog disclosure read (mocked measurer)'
       ).success
     ).toBe(false)
     expect(computeAutoBaselinesMock).not.toHaveBeenCalled()
+  })
+
+  it('refuses more than 50 metrics without reading any of them', async () => {
+    const { list, itemsRead } = countingList(
+      Array.from({ length: 51 }, () => 'cost' as const)
+    )
+    const res = await mod.previewAutoBaselines({
+      startDate: '2026-04-01',
+      metrics: list,
+    })
+    expect(itemsRead()).toBe(0)
+    expect(res.success).toBe(false)
+    expect(res.error).toMatch(/at most 50 metrics/)
+    expect(baMemberFindFirst).not.toHaveBeenCalled()
+    expect(computeAutoBaselinesMock).not.toHaveBeenCalled()
+  })
+
+  it('still measures exactly 50 metrics (boundary)', async () => {
+    const res = await mod.previewAutoBaselines({
+      startDate: '2026-04-01',
+      metrics: Array.from({ length: 50 }, () => 'cost' as const),
+    })
+    expect(res.success).toBe(true)
+    expect(res.data).toHaveLength(50)
   })
 })
