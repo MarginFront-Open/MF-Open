@@ -344,6 +344,9 @@ and the dashboard build downloads its fonts from Google Fonts.
 [docs/make-it-yours.md](docs/make-it-yours.md#your-hosting) shows where each
 one lives. Next.js and Turborepo report their own usage unless you set
 `NEXT_TELEMETRY_DISABLED=1` and `TURBO_TELEMETRY_DISABLED=1`.
+Prisma's command-line tool, which runs during database setup, migrations and
+builds, checks for updates and reports its own usage to
+`checkpoint.prisma.io` unless you set `CHECKPOINT_DISABLE=1`.
 
 ## Contributing and security
 
