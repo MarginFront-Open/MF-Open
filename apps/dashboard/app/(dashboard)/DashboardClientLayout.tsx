@@ -166,7 +166,7 @@ export default function DashboardClientLayout({
   // Only conditionally show the sidebar/header UI based on layout options
   return (
       <SidebarProvider>
-        <div className='flex h-screen w-full overflow-hidden'>
+        <div className='print-grow flex h-screen w-full overflow-hidden'>
           {showSidebar && <AppSidebar />}
           <div className='flex flex-1 flex-col overflow-hidden'>
             {showNavbar && <Header />}

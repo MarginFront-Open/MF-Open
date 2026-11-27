@@ -766,6 +766,14 @@
     print-color-adjust: exact !important;
   }
 
+  /* On paper the one-screen shell grows to its content, or everything after the first sheet is lost. */
+  .print-grow,
+  .print-grow > *,
+  .print-grow main {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
   /* Make printable content full width */
   .print-container,
   .print-content {

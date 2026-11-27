@@ -29,13 +29,14 @@ export function AppSidebar({ ...props }: AppSidebarProps) {
   const { data: unreadCount } = useUnreadCustomerAlertCount()
   const navGroups = mergeUnreadBadge(sidebarData.navGroups, unreadCount)
 
+  // print:hidden covers the sidebar's width spacer too; the print styles only hide the panel.
   return (
     <motion.div
       initial='initial'
       animate='animate'
       exit='exit'
       variants={variants}
-      className='h-full'
+      className='h-full print:hidden'
     >
       <Sidebar collapsible='icon' variant='floating' {...props}>
         <SidebarHeader className='gap-1 pb-1 pt-1'>
